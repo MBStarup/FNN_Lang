@@ -1,7 +1,7 @@
 grammar FNN;
-program: stmt*;
-stmt: ID ':' expr;
-function_declaration: '(' (ID ' ')* ')' ':' '{' stmt* '}';
+program: expr*;
+assignment_expr: ID ':' expr;
+function_declaration: '(' (ID ' ')* ')' ':' '{' expr* '}';
 array_declaration: type ('[' expr ']')+;
 range_declaration: INT '..' FLOAT;
 model_declaration: 'model' '<' '>' '<' ID* '>' '<' ID '>';
@@ -9,6 +9,7 @@ expr:
 	ID
 	| function_declaration
 	| array_declaration
+	| assignment_expr
 	| INT
 	| FLOAT
 	| expr OPERATOR expr;
