@@ -12,10 +12,26 @@ public class Main {
     public static void main(String[] args) throws IOException {
         System.out.println("Hellow from Java!");
         FNNLexer lexer = new FNNLexer(CharStreams.fromFileName(args[0]));
-        Token tok = lexer.nextToken();
-        while (tok.getType() != Token.EOF) {
-            tok = lexer.nextToken();
-            System.out.println(tok);
-        }
+        FNNParser parser = new FNNParser(new CommonTokenStream(lexer));
+        FNNParser.ProgramContext p_tree = parser.program();
+        Visitor uselessVisitor = new Visitor();
+        uselessVisitor.visitProgram(p_tree);
+
+    }
+}
+
+class Visitor extends FNNBaseVisitor<Object>
+{
+    @Override public Object visitProgram(FNNParser.ProgramContext ctx) 
+    { 
+        System.out.println("visiting Programme");
+        System.out.println(ctx.getText());
+        return this.visitChildren(ctx);
+    }
+
+    @Override public Object visitType(FNNParser.TypeContext ctx) 
+    {
+        System.out.println("Visiting tüüp"); 
+        return this.visitChildren(ctx); 
     }
 }

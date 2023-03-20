@@ -2,7 +2,7 @@ grammar FNN;
 program: stmt*;
 stmt: ID ':' expr;
 function_declaration: '(' (ID ' ')* ')' ':' '{' stmt* '}';
-array_declaration: type '[' expr ']';
+array_declaration: type ('[' expr ']')+;
 range_declaration: INT '..' FLOAT;
 model_declaration: 'model' '<' '>' '<' ID* '>' '<' ID '>';
 expr:
