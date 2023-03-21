@@ -8,14 +8,16 @@ model_declaration: 'model' '<' '>' '<' ID* '>' '<' ID '>';
 intlit: INT;
 floatlit: FLOAT;
 
-expr:
-	ID
+expr: ID
 	| function_declaration
 	| array_declaration
 	| assignment_expr
 	| intlit
 	| floatlit
-	| expr OPERATOR expr;
+	| expr A_OPERATOR expr
+	| expr B_OPERATOR expr
+	;
+	
 type: 'num';
 
 COLON: ':';
@@ -26,7 +28,8 @@ LCURLY: '}';
 RBRACE: '[';
 LBRACE: ']';
 TYPE: 'num';
-OPERATOR: '*' | '/' | '+' | '-' | '<' | '>' | '=';
+A_OPERATOR: '*' | '/' | '+' | '-' ; 
+B_OPERATOR: '<' | '>' | '=';
 INT: [-]? [0-9]+;
 FLOAT: INT | [-]? [0-9]* '.' [0-9]+;
 ID: [a-z_]+;

@@ -24,8 +24,12 @@ public class Visitor extends FNNBaseVisitor<TypeEnum> {
         System.out.println(ctx.getText());
         // System.out.print("Visiting expr: ");
         // System.out.printf("This expr is a: %s\n", (ctx.getChild(0)).getPayload());
-
-        System.out.println(ctx.OPERATOR());
+        if (ctx.A_OPERATOR() != null) {
+            System.out.println("Hey this is pretty cool --> " + this.visitChildren(ctx));
+        }
+        if (ctx.B_OPERATOR() != null) {
+            System.out.println(ctx.B_OPERATOR());
+        }
 
         return this.visitChildren(ctx);
     }
