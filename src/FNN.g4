@@ -1,17 +1,20 @@
 grammar FNN;
-program: expr*;
+program: expr* EOF;
 assignment_expr: ID ':' expr;
 function_declaration: '(' (ID ' ')* ')' ':' '{' expr* '}';
 array_declaration: type ('[' expr ']')+;
 range_declaration: INT '..' FLOAT;
 model_declaration: 'model' '<' '>' '<' ID* '>' '<' ID '>';
+intlit: INT;
+floatlit: FLOAT;
+
 expr:
 	ID
 	| function_declaration
 	| array_declaration
 	| assignment_expr
-	| INT
-	| FLOAT
+	| intlit
+	| floatlit
 	| expr OPERATOR expr;
 type: 'num';
 
