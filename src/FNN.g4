@@ -14,8 +14,7 @@ expr: ID
 	| assignment_expr
 	| intlit
 	| floatlit
-	| expr A_OPERATOR expr
-	| expr B_OPERATOR expr
+	| left=expr OPERATOR right=expr
 	;
 	
 type: 'num';
@@ -28,8 +27,7 @@ LCURLY: '}';
 RBRACE: '[';
 LBRACE: ']';
 TYPE: 'num';
-A_OPERATOR: '*' | '/' | '+' | '-' ; 
-B_OPERATOR: '<' | '>' | '=';
+OPERATOR: '*' | '/' | '+' | '-' | '<' | '>' | '=';
 INT: [-]? [0-9]+;
 FLOAT: INT | [-]? [0-9]* '.' [0-9]+;
 ID: [a-z_]+;

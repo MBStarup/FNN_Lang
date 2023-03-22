@@ -1,3 +1,7 @@
+import java.lang.ProcessBuilder.Redirect.Type;
+import java.lang.ref.Cleaner;
+
+import org.antlr.v4.runtime.atn.SemanticContext.Operator;
 
 public class Visitor extends FNNBaseVisitor<TypeEnum> {
     @Override
@@ -24,11 +28,22 @@ public class Visitor extends FNNBaseVisitor<TypeEnum> {
         System.out.println(ctx.getText());
         // System.out.print("Visiting expr: ");
         // System.out.printf("This expr is a: %s\n", (ctx.getChild(0)).getPayload());
-        if (ctx.A_OPERATOR() != null) {
-            System.out.println("Hey this is pretty cool --> " + this.visitChildren(ctx));
-        }
-        if (ctx.B_OPERATOR() != null) {
-            System.out.println(ctx.B_OPERATOR());
+        if (ctx.left != null && ctx.right != null) {
+            TypeEnum left = visit(ctx.left);
+            TypeEnum right = visit(ctx.right);
+
+            String operator = ctx.OPERATOR().getText();
+            switch (operator.charAt(0)) {
+                case '+', '-', '*', '/':
+                    if (left == TypeEnum.Float || right == TypeEnum.Float) {
+                        return TypeEnum.Float;
+                    } else {
+                        return TypeEnum.Int;
+                    }
+                default:
+                    throw new IllegalArgumentException("Wrong Operator" + operator);
+
+            }
         }
 
         return this.visitChildren(ctx);
