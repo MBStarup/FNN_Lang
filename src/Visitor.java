@@ -9,6 +9,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public AstNode visitProgram(FNNParser.ProgramContext ctx) {
         ProgramNode result = new ProgramNode();
         for (int i = 0; i < ctx.getChildCount() - 1; i++) { // -1 to skip th EOF
+            System.out.println("going to visit: " + ctx.getChild(i).getText());
             result.Exprs.add((ExprNode) this.visit(ctx.getChild(i)));
         }
         return result;
@@ -18,37 +19,66 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public AstNode visitBiop(FNNParser.BiopContext ctx) {
 
         BiOperatorNode result = new BiOperatorNode();
-        result.Left = this.visit(ctx.left_op);
-        result.Right = this.visit(ctx.right_op);
-        result.Operator = ctx.OPERATOR().getText();
+
+        var l = this.visit(ctx.left_op);
+        if (!(l instanceof ExprNode)) {
+            System.err.println("Left operand of bi-operator was not an expression - " +
+                    ctx.left_op.getStart() + " to "
+                    + ctx.left_op.getStop());
+            System.exit(-1);
+        }
+        result.Left = (ExprNode) l;
+
+        var r = this.visit(ctx.right_op);
+        if (!(r instanceof ExprNode)) {
+            System.err.println("Right operand of bi-operator was not an expression - " +
+                    ctx.right_op.getStart() + " to "
+                    + ctx.right_op.getStop());
+            System.exit(-1);
+        }
+        result.Right = (ExprNode) r;
+
+        result.Type = result.Right.Type == TypeEnum.Int && result.Left.Type == TypeEnum.Int ? TypeEnum.Int
+                : TypeEnum.Float;
+
+        result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
+
+        return result;
     }
 
-    public AstNode visitExpr(FNNParser.ExprContext ctx) {
-        // AstNode result;
-        // if (ctx.left != null && ctx.right != null) {
-        // AstNode left = visit(ctx.left);
-        // AstNode right = visit(ctx.right);
+    @Override
+    public AstNode visitUnop(FNNParser.UnopContext ctx) {
 
-        // String operator = ctx.OPERATOR().getText();
-        // switch (operator.charAt(0)) {
-        // case '+':
-        // case '-':
-        // case '*':
-        // case '/':
-        // if (left == AstNode.Float || right == AstNode.Float) {
-        // result = TypeEnum.Float;
-        // } else {
-        // result = TypeEnum.Int;
-        // }
-        // break;
-        // default:
-        // throw new IllegalArgumentException("Wrong Operator" + operator);
+        UnOperatorNode result = new UnOperatorNode();
 
-        // }
-        // }
-        // result = this.visitChildren(ctx);
-        // System.out.println("Returning expr: " + result);
-        // return result;
-        return null;
+        var op = this.visit(ctx.op);
+        if (!(op instanceof ExprNode)) {
+            System.err.println("Left operand of bi-operator was not an expression - " +
+                    ctx.op.getStart() + " to "
+                    + ctx.op.getStop());
+            System.exit(-1);
+        }
+        result.Operand = (ExprNode) op;
+        result.Type = result.Operand.Type;
+
+        result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
+
+        return result;
+    }
+
+    @Override
+    public IntNode visitIntlit(FNNParser.IntlitContext ctx) {
+        IntNode result = new IntNode();
+        result.Type = TypeEnum.Int;
+        result.Value = Integer.parseInt(ctx.getText());
+        return result;
+    }
+
+    @Override
+    public FloatNode visitFloatlit(FNNParser.FloatlitContext ctx) {
+        FloatNode result = new FloatNode();
+        result.Type = TypeEnum.Float;
+        result.Value = Float.parseFloat(ctx.getText());
+        return result;
     }
 }

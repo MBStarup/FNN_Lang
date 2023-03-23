@@ -1,3 +1,3 @@
 public class ExprNode extends AstNode {
-    public TypeEnum ResultType;
+    public TypeEnum Type;
 }

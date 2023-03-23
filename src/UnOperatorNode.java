@@ -1,5 +1,4 @@
 public class UnOperatorNode extends ExprNode {
-    public UnOperatorNode() {
-        this.Type = AstNodeType.UnOperator;
-    }
+    public OpEnum Operator;
+    public ExprNode Operand;
 }

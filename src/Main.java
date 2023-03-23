@@ -1,4 +1,9 @@
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
+import java.io.*;
+
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.CharStreams;
 
@@ -15,27 +20,22 @@ public class Main {
         FNNParser parser = new FNNParser(new CommonTokenStream(lexer));
         FNNParser.ProgramContext p_tree = parser.program();
         Visitor visitor = new Visitor();
-        System.out.println("This is result: " + visitor.visitProgram(p_tree));
+        ToCCompiler compiler = new ToCCompiler();
+        Writer fw = new FileWriter("out.c", false);
 
-    }
+        fw.write(compiler.Compile((ProgramNode) visitor.visitProgram(p_tree)));
+        fw.close();
+        Process process = new ProcessBuilder("gcc", "out.c").start();
 
-    public static String Compile_To_C(AstNode Node) {
-        switch (Node.Type) {
-            case BiOperator: {
-                BiOperatorNode n = (BiOperatorNode) Node;
-                break;
-            }
-            case Program: {
-                ProgramNode n = (ProgramNode) Node;
-                break;
-            }
-            case UnOperator: {
-                UnOperatorNode n = (UnOperatorNode) Node;
-                break;
-            }
-            default:
-                break;
-        }
-        return null;
+        // InputStream is = process.getInputStream();
+        // InputStreamReader isr = new InputStreamReader(is);
+        // BufferedReader br = new BufferedReader(isr);
+        // String line;
+
+        // System.out.printf("Output of running %s is:", Arrays.toString(args));
+
+        // while ((line = br.readLine()) != null) {
+        // System.out.println(line);
+        // }
     }
 }

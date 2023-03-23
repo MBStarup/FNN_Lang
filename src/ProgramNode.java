@@ -3,7 +3,7 @@ import java.lang.reflect.Field;
 
 public class ProgramNode extends AstNode {
     public ProgramNode() {
-        this.Type = AstNodeType.Program;
+        Exprs = new Vector<ExprNode>();
     }
 
     public List<ExprNode> Exprs;

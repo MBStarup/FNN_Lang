@@ -5,7 +5,6 @@ import org.antlr.v4.misc.Graph.Node;
 import org.antlr.v4.runtime.misc.Pair;
 
 public abstract class AstNode {
-    public AstNodeType Type;
     // public abstract int getChildCount();
 
     // public abstract AstNode getChild(int i);
