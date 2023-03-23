@@ -2,61 +2,53 @@ import java.lang.ProcessBuilder.Redirect.Type;
 import java.lang.ref.Cleaner;
 
 import org.antlr.v4.runtime.atn.SemanticContext.Operator;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
-public class Visitor extends FNNBaseVisitor<TypeEnum> {
+public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
-    public TypeEnum visitProgram(FNNParser.ProgramContext ctx) {
-        System.out.println("visiting Programme");
-        System.out.print("programtext: ");
-        System.out.println(ctx.getText());
-        // for (var child : ctx.children) {
-        // System.out.printf("Asking child %s to accept visitor\n", child.toString());
-        // child.accept(this);
-        // }
-        return this.visitChildren(ctx);
-    }
-
-    @Override
-    public TypeEnum visitType(FNNParser.TypeContext ctx) {
-        System.out.println("Visiting tüüp");
-        return this.visitChildren(ctx);
-    }
-
-    @Override
-    public TypeEnum visitExpr(FNNParser.ExprContext ctx) {
-        System.out.printf("arhh: %d \n", ctx.getChildCount());
-        System.out.println(ctx.getText());
-        // System.out.print("Visiting expr: ");
-        // System.out.printf("This expr is a: %s\n", (ctx.getChild(0)).getPayload());
-        if (ctx.left != null && ctx.right != null) {
-            TypeEnum left = visit(ctx.left);
-            TypeEnum right = visit(ctx.right);
-
-            String operator = ctx.OPERATOR().getText();
-            switch (operator.charAt(0)) {
-                case '+', '-', '*', '/':
-                    if (left == TypeEnum.Float || right == TypeEnum.Float) {
-                        return TypeEnum.Float;
-                    } else {
-                        return TypeEnum.Int;
-                    }
-                default:
-                    throw new IllegalArgumentException("Wrong Operator" + operator);
-
-            }
+    public AstNode visitProgram(FNNParser.ProgramContext ctx) {
+        ProgramNode result = new ProgramNode();
+        for (int i = 0; i < ctx.getChildCount() - 1; i++) { // -1 to skip th EOF
+            result.Exprs.add((ExprNode) this.visit(ctx.getChild(i)));
         }
-
-        return this.visitChildren(ctx);
+        return result;
     }
 
     @Override
-    public TypeEnum visitIntlit(FNNParser.IntlitContext ctx) {
-        return TypeEnum.Int;
+    public AstNode visitBiop(FNNParser.BiopContext ctx) {
+
+        BiOperatorNode result = new BiOperatorNode();
+        result.Left = this.visit(ctx.left_op);
+        result.Right = this.visit(ctx.right_op);
+        result.Operator = ctx.OPERATOR().getText();
     }
 
-    @Override
-    public TypeEnum visitFloatlit(FNNParser.FloatlitContext ctx) {
-        return TypeEnum.Float;
-    }
+    public AstNode visitExpr(FNNParser.ExprContext ctx) {
+        // AstNode result;
+        // if (ctx.left != null && ctx.right != null) {
+        // AstNode left = visit(ctx.left);
+        // AstNode right = visit(ctx.right);
 
+        // String operator = ctx.OPERATOR().getText();
+        // switch (operator.charAt(0)) {
+        // case '+':
+        // case '-':
+        // case '*':
+        // case '/':
+        // if (left == AstNode.Float || right == AstNode.Float) {
+        // result = TypeEnum.Float;
+        // } else {
+        // result = TypeEnum.Int;
+        // }
+        // break;
+        // default:
+        // throw new IllegalArgumentException("Wrong Operator" + operator);
+
+        // }
+        // }
+        // result = this.visitChildren(ctx);
+        // System.out.println("Returning expr: " + result);
+        // return result;
+        return null;
+    }
 }

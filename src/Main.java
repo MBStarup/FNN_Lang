@@ -15,6 +15,27 @@ public class Main {
         FNNParser parser = new FNNParser(new CommonTokenStream(lexer));
         FNNParser.ProgramContext p_tree = parser.program();
         Visitor visitor = new Visitor();
-        visitor.visitProgram(p_tree);
+        System.out.println("This is result: " + visitor.visitProgram(p_tree));
+
+    }
+
+    public static String Compile_To_C(AstNode Node) {
+        switch (Node.Type) {
+            case BiOperator: {
+                BiOperatorNode n = (BiOperatorNode) Node;
+                break;
+            }
+            case Program: {
+                ProgramNode n = (ProgramNode) Node;
+                break;
+            }
+            case UnOperator: {
+                UnOperatorNode n = (UnOperatorNode) Node;
+                break;
+            }
+            default:
+                break;
+        }
+        return null;
     }
 }
