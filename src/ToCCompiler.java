@@ -84,6 +84,31 @@ public class ToCCompiler {
         return result;
     }
 
+    public String Compile(FunctionDeclarationNode Node) {
+        String result = Node.ReturnType + Node.Name + "(";
+        for (var param : Node.Params) {
+            result += "";
+
+        }
+
+        return result;
+    }
+
+    public String TypeEnumToString(TypeEnum Enum) {
+        switch (Enum) {
+            case Int:
+                return "int";
+            case Float:
+                return "float";
+            default:
+                System.err.println("Unexpected type cannot be converted to c-type string");
+                System.exit(-1);
+                // TODO: Make exit function.
+        }
+
+        return null;
+    }
+
     public String Compile(FloatNode Node) {
         String result = "(";
         result += Node.Value;

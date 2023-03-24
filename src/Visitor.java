@@ -26,19 +26,22 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var l = this.visit(ctx.left_op);
         if (!(l instanceof ExprNode)) {
-            System.err.println("Left operand of bi-operator was not an expression: " + ctx.left_op.getStart() + " to " + ctx.left_op.getStop());
+            System.err.println("Left operand of bi-operator was not an expression: " + ctx.left_op.getStart() + " to "
+                    + ctx.left_op.getStop());
             System.exit(-1);
         }
         result.Left = (ExprNode) l;
 
         var r = this.visit(ctx.right_op);
         if (!(r instanceof ExprNode)) {
-            System.err.println("Right operand of bi-operator was not an expression: " + ctx.right_op.getStart() + " to " + ctx.right_op.getStop());
+            System.err.println("Right operand of bi-operator was not an expression: " + ctx.right_op.getStart() + " to "
+                    + ctx.right_op.getStop());
             System.exit(-1);
         }
         result.Right = (ExprNode) r;
 
-        result.Type = result.Right.Type == TypeEnum.Int && result.Left.Type == TypeEnum.Int ? TypeEnum.Int : TypeEnum.Float;
+        result.Type = result.Right.Type == TypeEnum.Int && result.Left.Type == TypeEnum.Int ? TypeEnum.Int
+                : TypeEnum.Float;
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
 
@@ -52,7 +55,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var op = this.visit(ctx.op);
         if (!(op instanceof ExprNode)) {
-            System.err.println("Left operand of bi-operator was not an expression: " + ctx.op.getStart() + " to " + ctx.op.getStop());
+            System.err.println("Left operand of bi-operator was not an expression: " + ctx.op.getStart() + " to "
+                    + ctx.op.getStop());
             System.exit(-1);
         }
         result.Operand = (ExprNode) op;
@@ -67,7 +71,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public ExprNode visitParens(FNNParser.ParensContext ctx) {
         var result = this.visit(ctx.expr_in_parens);
         if (!(result instanceof ExprNode)) {
-            System.err.println("Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
+            System.err.println("Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to "
+                    + ctx.expr_in_parens.getStop());
             System.exit(-1);
         }
 
@@ -78,7 +83,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public ExprNode visitAssign(FNNParser.AssignContext ctx) {
         var result = this.visit(ctx.expr_in_assign);
         if (!(result instanceof ExprNode)) {
-            System.err.println("Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart() + " to " + ctx.expr_in_assign.getStop());
+            System.err.println("Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart()
+                    + " to " + ctx.expr_in_assign.getStop());
             System.exit(-1);
         }
 
@@ -98,6 +104,13 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         System.err.println("Could not evaluate variable " + name + " : " + ctx.getStart() + " to " + ctx.getStop());
         System.exit(-1);
         return null;
+    }
+
+    @Override
+    public AstNode visitFunction_declaration(FNNParser.Function_declarationContext ctx) {
+        System.err.println("We need stuff here --> ");
+        System.exit(-1);
+        return visitChildren(ctx);
     }
 
     @Override

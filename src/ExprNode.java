@@ -1,3 +1,3 @@
-public class ExprNode extends AstNode {
+public class ExprNode extends StmtNode {
     public TypeEnum Type;
 }
