@@ -26,6 +26,7 @@ public class Main {
         fw.write(compiler.Compile((ProgramNode) visitor.visitProgram(p_tree)));
         fw.close();
         Process process = new ProcessBuilder("gcc", "out.c").start();
+        new File("out.c").delete();
 
         // InputStream is = process.getInputStream();
         // InputStreamReader isr = new InputStreamReader(is);

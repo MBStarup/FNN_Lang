@@ -1,13 +1,12 @@
 grammar FNN;
 program: expr* EOF;
 
-expr: INT 									#intlit
-	| FLOAT 								#floatlit
-	| left_op=expr OPERATOR right_op=expr	#biop
-	| OPERATOR op=expr						#unop
-	| '(' expr ')' 							#parens
-	;
-	
+expr:
+	INT											# intlit
+	| FLOAT										# floatlit
+	| left_op = expr OPERATOR right_op = expr	# biop
+	| OPERATOR op = expr						# unop
+	| '(' expr_in_parens = expr ')'				# parens;
 
 OPERATOR: '*' | '/' | '+' | '-';
 INT: [0-9]+;

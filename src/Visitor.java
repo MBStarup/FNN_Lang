@@ -22,7 +22,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var l = this.visit(ctx.left_op);
         if (!(l instanceof ExprNode)) {
-            System.err.println("Left operand of bi-operator was not an expression - " +
+            System.err.println("Left operand of bi-operator was not an expression: " +
                     ctx.left_op.getStart() + " to "
                     + ctx.left_op.getStop());
             System.exit(-1);
@@ -31,7 +31,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var r = this.visit(ctx.right_op);
         if (!(r instanceof ExprNode)) {
-            System.err.println("Right operand of bi-operator was not an expression - " +
+            System.err.println("Right operand of bi-operator was not an expression: " +
                     ctx.right_op.getStart() + " to "
                     + ctx.right_op.getStop());
             System.exit(-1);
@@ -53,7 +53,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var op = this.visit(ctx.op);
         if (!(op instanceof ExprNode)) {
-            System.err.println("Left operand of bi-operator was not an expression - " +
+            System.err.println("Left operand of bi-operator was not an expression: " +
                     ctx.op.getStart() + " to "
                     + ctx.op.getStop());
             System.exit(-1);
@@ -64,6 +64,19 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
 
         return result;
+    }
+
+    @Override
+    public ExprNode visitParens(FNNParser.ParensContext ctx) {
+        var result = this.visit(ctx.expr_in_parens);
+        if (!(result instanceof ExprNode)) {
+            System.err.println("Contents of parens was not an expression: " +
+                    ctx.expr_in_parens.getStart() + " to "
+                    + ctx.expr_in_parens.getStop());
+            System.exit(-1);
+        }
+
+        return (ExprNode) result; // this being hard-doed kinda sucks
     }
 
     @Override

@@ -26,8 +26,11 @@ bld/
 */[Ll]og/
 */antlrfiles/
 antlrfiles/
+*/.antlr/
+.antlr/
 *.class
 *.log
+*.exe
 
 # Visual Studio 2015 cache/options directory
 .vs/
