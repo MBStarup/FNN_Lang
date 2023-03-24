@@ -8,7 +8,7 @@ import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.CharStreams;
 
 public class Main {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         System.out.println("Hellow from Java!");
 
         if (args.length < 1) {
@@ -25,18 +25,18 @@ public class Main {
 
         fw.write(compiler.Compile((ProgramNode) visitor.visitProgram(p_tree)));
         fw.close();
-        Process process = new ProcessBuilder("gcc", "out.c").start();
+        var process = new ProcessBuilder("gcc", "out.c").start();
+
+        // Print gcc output
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        process.waitFor();
+        System.out.printf("gcc output:");
+        String line;
+        while ((line = reader.readLine()) != null) {
+            System.out.println(line);
+        }
+        // end print gcc output
+
         new File("out.c").delete();
-
-        // InputStream is = process.getInputStream();
-        // InputStreamReader isr = new InputStreamReader(is);
-        // BufferedReader br = new BufferedReader(isr);
-        // String line;
-
-        // System.out.printf("Output of running %s is:", Arrays.toString(args));
-
-        // while ((line = br.readLine()) != null) {
-        // System.out.println(line);
-        // }
     }
 }
