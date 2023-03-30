@@ -1,3 +1,3 @@
 public enum TypeEnum {
-    Int, Float
+    Int, Float, Layer
 }

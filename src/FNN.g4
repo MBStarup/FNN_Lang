@@ -12,9 +12,11 @@ expr:
 	| '(' expr_in_parens = expr ')'				# parens
 	| ID ':' expr_in_assign = expr				# assign
 	| ID										# eval
-	| ID '(' expr* ')'							# call;
+	| ID '(' expr* ')'							# call
+	| 'dense' '('input_size = expr output_size = expr activation_function = ACTIVATION_FUNCTION')' #layerlit;
 
 OPERATOR: '*' | '/' | '+' | '-';
+ACTIVATION_FUNCTION: 'sigmoid' | 'relu';
 INT: [0-9]+;
 FLOAT: INT | [0-9]* '.' [0-9]+;
 ID: [a-z_]+;

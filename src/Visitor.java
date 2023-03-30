@@ -128,4 +128,28 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         result.Value = Float.parseFloat(ctx.getText());
         return result;
     }
+
+    @Override
+    public LayerNode visitLayerlit(FNNParser.LayerlitContext ctx) {
+        LayerNode result = new LayerNode();
+        result.Type = TypeEnum.Layer;
+        var inputsize = this.visit(ctx.input_size);
+        if(!(inputsize instanceof IntNode)){
+            System.err.println("Input size of layer must be integer: " + ctx.input_size.getStart() + " to "
+                    + ctx.input_size.getStop());
+            System.exit(-1);
+        }
+        result.Inputsize = (IntNode)inputsize;
+
+        var outputsize = this.visit(ctx.output_size);
+        if(!(inputsize instanceof IntNode)){
+            System.err.println("Output size of layer must be integer: " + ctx.output_size.getStart() + " to "
+                    + ctx.output_size.getStop());
+            System.exit(-1);
+        }
+        result.Outputsize = (IntNode)outputsize;
+
+        result.ActivationFunction = ctx.activation_function.getText();
+        return result;
+    }
 }

@@ -62,10 +62,8 @@ sigmoid(in): {
     }
 }
 
-l1: dense(784 128)
-l2: sigmoid(128)
-l3: dense(128 10)
-l4: sigmoid(10)
+l1: dense(784 128, sigmoid)
+l3: dense(128 10, sigmoid)
 
 m: model<><l1 l2 l3 l4><softmax>
 for (e: 0 .. 1000) {
