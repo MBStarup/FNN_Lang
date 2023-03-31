@@ -37,6 +37,6 @@ public class Main {
         }
         // end print gcc output
 
-        new File("out.c").delete();
+        // new File("out.c").delete();
     }
 }

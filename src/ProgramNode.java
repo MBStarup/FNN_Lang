@@ -3,8 +3,8 @@ import java.lang.reflect.Field;
 
 public class ProgramNode extends AstNode {
     public ProgramNode() {
-        Exprs = new Vector<ExprNode>();
+        Stmts = new Vector<StmtNode>();
     }
 
-    public List<ExprNode> Exprs;
+    public List<StmtNode> Stmts;
 }
