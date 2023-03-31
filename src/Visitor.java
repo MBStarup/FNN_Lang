@@ -1,10 +1,27 @@
 import java.util.*;
-
-import javax.swing.text.html.HTMLDocument.RunElement;
-
 import org.antlr.v4.runtime.ParserRuleContext;
 
 public class Visitor extends FNNBaseVisitor<AstNode> {
+
+    static void ERREXIT(String msg) {
+        System.err.println(msg);
+        System.exit(-1);
+    }
+
+    static void ASSERT(Boolean predicate, String fail_msg) {
+        if (!(predicate))
+            ERREXIT(fail_msg);
+    }
+
+    static String TYPE_LIST_TO_STRING(List<TypeEnum> Types) {
+        String result = "{ ";
+        for (TypeEnum type : Types) {
+            result += type;
+            result += " ";
+        }
+        result += "}";
+        return result;
+    }
 
     public Stack<Map<String, TypeEnum>> Scopes;
 
@@ -29,21 +46,17 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         BiOperatorNode result = new BiOperatorNode();
 
         var l = this.visit(ctx.left_op);
-        if (!(l instanceof ExprNode)) {
-            System.err.println("Left operand of bi-operator was not an expression: " + ctx.left_op.getStart() + " to " + ctx.left_op.getStop());
-            System.exit(-1);
-        }
+        ASSERT(l instanceof ExprNode, "Left operand of bi-operator was not an expression: " + ctx.left_op.getStart() + " to " + ctx.left_op.getStop());
         result.Left = (ExprNode) l;
 
         var r = this.visit(ctx.right_op);
-        if (!(r instanceof ExprNode)) {
-            System.err.println("Right operand of bi-operator was not an expression: " + ctx.right_op.getStart() + " to " + ctx.right_op.getStop());
-            System.exit(-1);
-        }
+        ASSERT(r instanceof ExprNode, "Right operand of bi-operator was not an expression: " + ctx.right_op.getStart() + " to " + ctx.right_op.getStop());
         result.Right = (ExprNode) r;
 
+        ASSERT(result.Right.Types.size() == 1, "Binary operations can only be used on single value expressions");
+        ASSERT(result.Left.Types.size() == 1, "Binary operations can only be used on single value expressions");
         // TODO: Consider other types
-        result.Type = result.Right.Type == TypeEnum.Int && result.Left.Type == TypeEnum.Int ? TypeEnum.Int : TypeEnum.Float;
+        result.Types.add(result.Right.Types.get(0) == TypeEnum.Int && result.Left.Types.get(0) == TypeEnum.Int ? TypeEnum.Int : TypeEnum.Float);
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
 
@@ -56,12 +69,13 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         UnOperatorNode result = new UnOperatorNode();
 
         var op = this.visit(ctx.op);
-        if (!(op instanceof ExprNode)) {
-            System.err.println("Left operand of bi-operator was not an expression: " + ctx.op.getStart() + " to " + ctx.op.getStop());
-            System.exit(-1);
-        }
+        ASSERT(op instanceof ExprNode, "Left operand of bi-operator was not an expression: " + ctx.op.getStart() + " to " + ctx.op.getStop());
         result.Operand = (ExprNode) op;
-        result.Type = result.Operand.Type;
+        if (result.Operand.Types.size() != 1) {
+
+        }
+        ASSERT(result.Operand.Types.size() == 1, "Unary operations can only be used on single value expressions");
+        result.Types.add(result.Operand.Types.get(0));
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
 
@@ -71,10 +85,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public ExprNode visitParens(FNNParser.ParensContext ctx) {
         var result = this.visit(ctx.expr_in_parens);
-        if (!(result instanceof ExprNode)) {
-            System.err.println("Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
-            System.exit(-1);
-        }
+        ASSERT(result instanceof ExprNode, "Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
 
         return (ExprNode) result; // this being hard-doed kinda sucks
     }
@@ -82,20 +93,17 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public AssignNode visitAssign(FNNParser.AssignContext ctx) {
         var result = new AssignNode();
-        var name = ctx.ID().getText();
         var value = this.visit(ctx.expr_in_assign);
-        if (!(value instanceof ExprNode)) {
-            System.err.println("Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart() + " to " + ctx.expr_in_assign.getStop());
-            System.exit(-1);
-        }
+        ASSERT(value instanceof ExprNode, "Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart() + " to " + ctx.expr_in_assign.getStop());
         result.Value = (ExprNode) value;
-        result.Type = result.Value.Type;
-        result.Name = name;
-
-        Scopes.peek().put(name, result.Value.Type);
-
-        System.out.println("ASSIGN: " + name + " : " + result.Value.Type);
-
+        ASSERT(result.Value.Types.size() == ctx.ID().size(), "Match failure in assign, mismatched amount");
+        for (int i = 0; i < ctx.ID().size(); i++) {
+            var name = ctx.ID(i).getText();
+            result.Types.add(result.Value.Types.get(i));
+            result.Names.add(name);
+            Scopes.peek().put(name, result.Value.Types.get(i));
+            System.out.println("ASSIGN: " + name + " : " + result.Value.Types.get(i));
+        }
         return result;
     }
 
@@ -107,27 +115,25 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             if (type != null) {
                 System.out.println("EVAL: " + name + " : " + type);
                 EvalNode result = new EvalNode();
-                result.Type = type;
+                result.Types.add(type);
                 result.Name = name;
                 return result;
             }
         }
-        System.err.println("Could not evaluate variable " + name + " : " + ctx.getStart() + " to " + ctx.getStop());
-        System.exit(-1);
+        ERREXIT("Could not evaluate variable " + name + " : " + ctx.getStart() + " to " + ctx.getStop());
         return null;
     }
 
     @Override
     public AstNode visitFunction_declaration(FNNParser.Function_declarationContext ctx) {
-        System.err.println("We need stuff here --> ");
-        System.exit(-1);
-        return visitChildren(ctx);
+        ERREXIT("FUNCTIONS NOT IMPLEMENTED");
+        return null;
     }
 
     @Override
     public IntNode visitIntlit(FNNParser.IntlitContext ctx) {
         IntNode result = new IntNode();
-        result.Type = TypeEnum.Int;
+        result.Types.add(TypeEnum.Int);
         result.Value = Integer.parseInt(ctx.getText());
         return result;
     }
@@ -135,7 +141,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public FloatNode visitFloatlit(FNNParser.FloatlitContext ctx) {
         FloatNode result = new FloatNode();
-        result.Type = TypeEnum.Float;
+        result.Types.add(TypeEnum.Float);
         result.Value = Float.parseFloat(ctx.getText());
         return result;
     }
@@ -143,28 +149,18 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public LayerNode visitLayerlit(FNNParser.LayerlitContext ctx) {
         LayerNode result = new LayerNode();
-        result.Type = TypeEnum.Layer;
+        result.Types.add(TypeEnum.Layer);
         var inputsize = this.visit(ctx.input_size);
-        if (!(inputsize instanceof ExprNode)) {
-            System.err.println("Input size of layer must be an expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-            System.exit(-1);
-        }
+        ASSERT(inputsize instanceof ExprNode, "Input size of layer must be an expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
         result.InputSize = (ExprNode) inputsize;
-        if (result.InputSize.Type != TypeEnum.Int) {
-            System.err.println("Input size of layer must be an integer: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-            System.exit(-1);
-        }
+        ASSERT(result.InputSize.Types.size() == 1, "Input size of layer must be a single value expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
+        ASSERT(result.InputSize.Types.get(0) == TypeEnum.Int, "Input size of layer must be an integer: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
 
         var outputsize = this.visit(ctx.output_size);
-        if (!(inputsize instanceof ExprNode)) {
-            System.err.println("Output size of layer must be an expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
-            System.exit(-1);
-        }
+        ASSERT(outputsize instanceof ExprNode, "Output size of layer must be an expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
         result.OutputSize = (ExprNode) outputsize;
-        if (result.OutputSize.Type != TypeEnum.Int) {
-            System.err.println("Input size of layer must be an integer: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-            System.exit(-1);
-        }
+        ASSERT(result.OutputSize.Types.size() == 1, "Output size of layer must be a single value expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
+        ASSERT(result.OutputSize.Types.get(0) == TypeEnum.Int, "Output size of layer must be an integer: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
 
         result.ActivationFunction = ctx.activation_function.getText();
         return result;
@@ -173,21 +169,16 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public ModelNode visitModellit(FNNParser.ModellitContext ctx) {
         var result = new ModelNode();
-        result.Type = TypeEnum.Model;
+        result.Types.add(TypeEnum.Model);
         result.Layers = new Vector<>();
         for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all the expressions without the "model<>" part
             var layer = this.visit(expr);
-            if (!(layer instanceof ExprNode)) {
-                // TODO: This does some absolute meme casts
-                System.err.println("Model parameters must be expressions: " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
-                System.exit(-1);
+            ASSERT(layer instanceof ExprNode, "Model parameters must be expressions: " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
+            var exprNode = (ExprNode) layer;
+            for (TypeEnum type : exprNode.Types) {
+                ASSERT(type == TypeEnum.Layer, "Model parameters must be layers, not " + TYPE_LIST_TO_STRING(exprNode.Types) + ": " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
+                result.Layers.add(exprNode);
             }
-            if (((ExprNode) layer).Type != TypeEnum.Layer) {
-                // TODO: This does some absolute meme casts
-                System.err.println("Model parameters must be layers, not " + ((ExprNode) layer).Type + ": " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
-                System.exit(-1);
-            }
-            result.Layers.add((ExprNode) layer);
         }
         return result;
     }
@@ -195,7 +186,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public StringNode visitStrlit(FNNParser.StrlitContext ctx) {
         var result = new StringNode();
-        result.Type = TypeEnum.String;
+        result.Types.add(TypeEnum.String);
         result.Value = ctx.STR_CONTENT().getText();
         if (result.Value == null)
             result.Value = "";
@@ -206,37 +197,22 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public TrainNode visitTrain_stmt(FNNParser.Train_stmtContext ctx) {
         var result = new TrainNode();
         var epochs = this.visit(ctx.epochs);
-        if (!(epochs instanceof ExprNode)) {
-            System.err.println("Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-            System.exit(-1);
-        }
+        ASSERT(epochs instanceof ExprNode, "Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
         result.Epochs = (ExprNode) epochs;
-        if (result.Epochs.Type != TypeEnum.Int) {
-            System.err.println("Epochs in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-            System.exit(-1);
-        }
+        ASSERT(result.Epochs.Types.size() == 1, "Epoch in training must be a single value expression");
+        ASSERT(result.Epochs.Types.get(0) != TypeEnum.Int, "Epochs in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
         var batchSize = this.visit(ctx.batch_size);
-        if (!(batchSize instanceof ExprNode)) {
-            System.err.println("Batch size in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-            System.exit(-1);
-        }
+        ASSERT(batchSize instanceof ExprNode, "Batch size in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        ASSERT(result.BatchSize.Types.size() == 1, "Batch size in training must be a single value expression");
         result.BatchSize = (ExprNode) batchSize;
-        if (result.BatchSize.Type != TypeEnum.Int) {
-            System.err.println("Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-            System.exit(-1);
-        }
+        ASSERT(result.BatchSize.Types.get(0) != TypeEnum.Int, "Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
         var model = this.visit(ctx.model);
-        if (!(model instanceof ExprNode)) {
-            System.err.println("Model in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-            System.exit(-1);
-        }
+        ASSERT(model instanceof ExprNode, "Model in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        ASSERT(result.Model.Types.size() == 1, "Model in training must be a single value expression");
         result.Model = (ExprNode) model;
-        if (result.Model.Type != TypeEnum.Model) {
-            System.err.println("Model in training must be an model: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-            System.exit(-1);
-        }
+        ASSERT(result.Model.Types.get(0) != TypeEnum.Model, "Model in training must be an model: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
         return result;
     }

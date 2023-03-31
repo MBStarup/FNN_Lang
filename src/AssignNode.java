@@ -1,5 +1,8 @@
+import java.util.List;
+import java.util.Vector;
+
 public class AssignNode extends StmtNode {
-    public TypeEnum Type;
-    public String Name;
+    public List<TypeEnum> Types = new Vector<>();
+    public List<String> Names = new Vector<>();
     public ExprNode Value;
 }

@@ -5,7 +5,7 @@ program: stmt* EOF;
 stmt: expr | function_declaration | assign | train_stmt;
 
 function_declaration: ID ':' '(' ID* ')' '{' stmt* '}';
-assign: ID ':' expr_in_assign = expr;
+assign: ID* ':' expr_in_assign = expr;
 train_stmt: 'train' '<' model = expr epochs = expr batch_size = expr '>';
 
 expr

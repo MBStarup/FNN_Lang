@@ -209,12 +209,14 @@ public class ToCCompiler {
 
     public String Compile(AssignNode Node) {
         String result = "";
-        result += TypeEnumToString(Node.Type);
-        result += " ";
-        result += Node.Name;
-        result += " = ";
-        result += this.Compile(Node.Value);
-        result += "";
+        for (int i = 0; i < Node.Names.size(); i++) {
+            result += TypeEnumToString(Node.Types.get(i));
+            result += " ";
+            result += Node.Names.get(i);
+            result += " = ";
+            result += this.Compile(Node.Value);
+            result += ";\n";
+        }
         return result;
     }
 

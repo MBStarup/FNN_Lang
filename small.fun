@@ -1,9 +1,6 @@
 
+input expected: loadcsv("mnist.csv")
 
-
-(input expected): loadcsv("mnist.csv")
-
-(real complex): 10i+2j + 5i+0j
 
 l_one: dense(784 64 sigmoid)
 l_two: dense(32 10 sigmoid)
