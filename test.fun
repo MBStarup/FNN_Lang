@@ -1,6 +1,6 @@
 dense(in out): {
-    feedforward: (data: num[in]) -> num[out] {
-        result: num[out]
+    feedforward: (data: float[in]) -> float[out] {
+        result: float[out]
         for (o: 0 .. out)
         {
             accum: 0.0
@@ -12,9 +12,9 @@ dense(in out): {
         }
     }
 
-    feedbackwards: (gradient: num[out] results: num[in] eta: num) -> num[in] {
+    feedbackwards: (gradient: float[out] results: float[in] eta: float) -> float[in] {
         /* calculate gradient for prev layer */
-        result: num[in]
+        result: float[in]
         for (i: 0 .. in)
         {
             result[i]: 0.0
@@ -36,28 +36,28 @@ dense(in out): {
         result
     }
 
-    weights: num[out][in]
-    biases: num[out]
+    weights: float[out][in]
+    biases: float[out]
 }
 
 sigmoid(in): {
-    num[in] feedforward(data: num[in]) {
-        result: num[in]
+    float[in] feedforward(data: float[in]) {
+        result: float[in]
         for (i: 0 .. in) {
             result[i] = sigmoid(result[i])
         }
         result
     }
     
-    feedbackwards: (gradient: num[in] results: num[in] eta: num) -> num[in] {
-        result: num[in]
+    feedbackwards: (gradient: float[in] results: float[in] eta: float) -> float[in] {
+        result: float[in]
         for (i: 0 .. in) {
             result[in]: gradient[i] * (sigmoid(result[i]) * (1 - sigmoid(result[i])))
         }
         result
     }
 
-    sigmoid: (x: num) -> num {
+    sigmoid: (x: float) -> float {
         1.0 / (1.0 + exp(-1 * x))
     }
 }

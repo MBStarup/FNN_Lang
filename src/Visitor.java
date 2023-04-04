@@ -1,29 +1,12 @@
+import java.nio.channels.AsynchronousServerSocketChannel;
 import java.util.*;
+
+import org.antlr.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 public class Visitor extends FNNBaseVisitor<AstNode> {
 
-    static void ERREXIT(String msg) {
-        System.err.println(msg);
-        System.exit(-1);
-    }
-
-    static void ASSERT(Boolean predicate, String fail_msg) {
-        if (!(predicate))
-            ERREXIT(fail_msg);
-    }
-
-    static String TYPE_LIST_TO_STRING(List<TypeEnum> Types) {
-        String result = "{ ";
-        for (TypeEnum type : Types) {
-            result += type;
-            result += " ";
-        }
-        result += "}";
-        return result;
-    }
-
-    public Stack<Map<String, TypeEnum>> Scopes;
+    public Stack<Map<String, FNNType>> Scopes;
 
     public Visitor() {
         Scopes = new Stack<>();
@@ -31,11 +14,44 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     }
 
     @Override
-    public AstNode visitProgram(FNNParser.ProgramContext ctx) {
+    public ProgramNode visitProgram(FNNParser.ProgramContext ctx) {
         ProgramNode result = new ProgramNode();
-        for (int i = 0; i < ctx.getChildCount() - 1; i++) { // -1 to skip th EOF
-            System.out.println("going to visit: " + ctx.getChild(i).getText());
-            result.Stmts.add((StmtNode) this.visit(ctx.getChild(i)));
+        var stmtList = this.visit(ctx.stmts);
+        Utils.ASSERT(stmtList instanceof StmtListNode, "I legit don't know how we'd ever get this error lmao");
+        result.Stmts = ((StmtListNode) stmtList).Stmts; // This is fucking retarded
+        return result;
+    }
+
+    @Override
+    public StmtListNode visitStmtlist(FNNParser.StmtlistContext ctx) {
+        var result = new StmtListNode();
+        for (var antlr_stmt_node : ctx.children) {
+            System.out.println("going to visit: " + antlr_stmt_node.getText());
+            var ast_stmt_node = this.visit(antlr_stmt_node);
+            Utils.ASSERT(ast_stmt_node instanceof StmtNode, "ASDASDASDASDDSDSDADASDSD");
+            result.Stmts.add((StmtNode) ast_stmt_node);
+        }
+        return result;
+    }
+
+    @Override
+    public ExprListNode visitExprlist(FNNParser.ExprlistContext ctx) {
+        var result = new ExprListNode();
+        for (var antlr_expr_node : ctx.children) {
+            var ast_expr_node = this.visit(antlr_expr_node);
+            Utils.ASSERT(ast_expr_node instanceof ExprNode, "Somehow we have a thing that was parsed to an exprlist, but when visiting the children it doesn't result in an ExprNode");
+            result.Exprs.add((ExprNode) ast_expr_node);
+        }
+        return result;
+    }
+
+    @Override
+    public TypeListNode visitTypelist(FNNParser.TypelistContext ctx) {
+        var result = new TypeListNode();
+        for (var antlr_type_node : ctx.children) {
+            var ast_type_node = this.visit(antlr_type_node);
+            Utils.ASSERT(ast_type_node instanceof TypeNode, "Somehow we have a thing that was parsed to an typelist, but when visiting the children it doesn't result in an TypeNode");
+            result.Types.add((TypeNode) ast_type_node);
         }
         return result;
     }
@@ -46,17 +62,18 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         BiOperatorNode result = new BiOperatorNode();
 
         var l = this.visit(ctx.left_op);
-        ASSERT(l instanceof ExprNode, "Left operand of bi-operator was not an expression: " + ctx.left_op.getStart() + " to " + ctx.left_op.getStop());
+        Utils.ASSERT(l instanceof ExprNode, "Left operand of bi-operator was not an expression: " + ctx.left_op.getStart() + " to " + ctx.left_op.getStop());
         result.Left = (ExprNode) l;
 
         var r = this.visit(ctx.right_op);
-        ASSERT(r instanceof ExprNode, "Right operand of bi-operator was not an expression: " + ctx.right_op.getStart() + " to " + ctx.right_op.getStop());
+        Utils.ASSERT(r instanceof ExprNode, "Right operand of bi-operator was not an expression: " + ctx.right_op.getStart() + " to " + ctx.right_op.getStop());
         result.Right = (ExprNode) r;
 
-        ASSERT(result.Right.Types.size() == 1, "Binary operations can only be used on single value expressions");
-        ASSERT(result.Left.Types.size() == 1, "Binary operations can only be used on single value expressions");
+        Utils.ASSERT(result.Right.Type instanceof BaseType, "Binary operations can only be used on single value expressions");
+        Utils.ASSERT(result.Left.Type instanceof BaseType, "Binary operations can only be used on single value expressions");
         // TODO: Consider other types
-        result.Types.add(result.Right.Types.get(0) == TypeEnum.Int && result.Left.Types.get(0) == TypeEnum.Int ? TypeEnum.Int : TypeEnum.Float);
+        // result.Types.add(result.Right.Types.get(0) == FNNType.Int && result.Left.Types.get(0) == FNNType.Int ? FNNType.Int : FNNType.Float);
+        Utils.ASSERT(result.Left.Type == result.Right.Type, "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type);
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
 
@@ -69,13 +86,10 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         UnOperatorNode result = new UnOperatorNode();
 
         var op = this.visit(ctx.op);
-        ASSERT(op instanceof ExprNode, "Left operand of bi-operator was not an expression: " + ctx.op.getStart() + " to " + ctx.op.getStop());
+        Utils.ASSERT(op instanceof ExprNode, "Left operand of bi-operator was not an expression: " + ctx.op.getStart() + " to " + ctx.op.getStop());
         result.Operand = (ExprNode) op;
-        if (result.Operand.Types.size() != 1) {
-
-        }
-        ASSERT(result.Operand.Types.size() == 1, "Unary operations can only be used on single value expressions");
-        result.Types.add(result.Operand.Types.get(0));
+        Utils.ASSERT(result.Operand.Type instanceof BaseType, "Unary operations can only be used on single value expressions");
+        result.Type = result.Operand.Type;
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
 
@@ -85,7 +99,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public ExprNode visitParens(FNNParser.ParensContext ctx) {
         var result = this.visit(ctx.expr_in_parens);
-        ASSERT(result instanceof ExprNode, "Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
+        Utils.ASSERT(result instanceof ExprNode, "Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
 
         return (ExprNode) result; // this being hard-doed kinda sucks
     }
@@ -94,15 +108,24 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public AssignNode visitAssign(FNNParser.AssignContext ctx) {
         var result = new AssignNode();
         var value = this.visit(ctx.expr_in_assign);
-        ASSERT(value instanceof ExprNode, "Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart() + " to " + ctx.expr_in_assign.getStop());
+        Utils.ASSERT(value instanceof ExprNode, "Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart() + " to " + ctx.expr_in_assign.getStop());
         result.Value = (ExprNode) value;
-        ASSERT(result.Value.Types.size() == ctx.ID().size(), "Match failure in assign, mismatched amount");
-        for (int i = 0; i < ctx.ID().size(); i++) {
-            var name = ctx.ID(i).getText();
-            result.Types.add(result.Value.Types.get(i));
+        if (ctx.ID().size() > 1) {
+            Utils.ASSERT(result.Value.Type instanceof TupleType, "Trying to match non tuple type, " + result.Value.Type + ", to multiple names");
+            Utils.ASSERT(((TupleType) result.Value.Type).Types.size() == ctx.ID().size(), "Match failure in assign, mismatched amount"); // TODO: if amount mismatch, we need to try to unwrap a layer of the tuple
+            for (int i = 0; i < ctx.ID().size(); i++) {
+                var name = ctx.ID(i).getText();
+                result.Types.add(((TupleType) result.Value.Type).Types.get(i));
+                result.Names.add(name);
+                Scopes.peek().put(name, ((TupleType) result.Value.Type).Types.get(i));
+                System.out.println("ASSIGN: " + name + " : " + ((TupleType) result.Value.Type).Types.get(i));
+            }
+        } else {
+            var name = ctx.ID(0).getText();
+            result.Types.add(result.Value.Type);
             result.Names.add(name);
-            Scopes.peek().put(name, result.Value.Types.get(i));
-            System.out.println("ASSIGN: " + name + " : " + result.Value.Types.get(i));
+            Scopes.peek().put(name, result.Value.Type);
+            System.out.println("ASSIGN: " + name + " : " + result.Value.Type);
         }
         return result;
     }
@@ -115,25 +138,25 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             if (type != null) {
                 System.out.println("EVAL: " + name + " : " + type);
                 EvalNode result = new EvalNode();
-                result.Types.add(type);
+                result.Type = type;
                 result.Name = name;
                 return result;
             }
         }
-        ERREXIT("Could not evaluate variable " + name + " : " + ctx.getStart() + " to " + ctx.getStop());
+        Utils.ERREXIT("Could not evaluate variable " + name + " : " + ctx.getStart() + " to " + ctx.getStop());
         return null;
     }
 
     @Override
     public AstNode visitFunction_declaration(FNNParser.Function_declarationContext ctx) {
-        ERREXIT("FUNCTIONS NOT IMPLEMENTED");
+        Utils.ERREXIT("FUNCTIONS NOT IMPLEMENTED");
         return null;
     }
 
     @Override
     public IntNode visitIntlit(FNNParser.IntlitContext ctx) {
         IntNode result = new IntNode();
-        result.Types.add(TypeEnum.Int);
+        result.Type = new BaseType(TypeEnum.Int);
         result.Value = Integer.parseInt(ctx.getText());
         return result;
     }
@@ -141,7 +164,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public FloatNode visitFloatlit(FNNParser.FloatlitContext ctx) {
         FloatNode result = new FloatNode();
-        result.Types.add(TypeEnum.Float);
+        result.Type = new BaseType(TypeEnum.Float);
         result.Value = Float.parseFloat(ctx.getText());
         return result;
     }
@@ -149,18 +172,18 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public LayerNode visitLayerlit(FNNParser.LayerlitContext ctx) {
         LayerNode result = new LayerNode();
-        result.Types.add(TypeEnum.Layer);
+        result.Type = new BaseType(TypeEnum.Layer);
         var inputsize = this.visit(ctx.input_size);
-        ASSERT(inputsize instanceof ExprNode, "Input size of layer must be an expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
+        Utils.ASSERT(inputsize instanceof ExprNode, "Input size of layer must be an expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
         result.InputSize = (ExprNode) inputsize;
-        ASSERT(result.InputSize.Types.size() == 1, "Input size of layer must be a single value expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-        ASSERT(result.InputSize.Types.get(0) == TypeEnum.Int, "Input size of layer must be an integer: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
+        Utils.ASSERT(result.InputSize.Type instanceof BaseType, "Input size of layer must be a single value expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
+        Utils.ASSERT(((BaseType) result.InputSize.Type).Type == TypeEnum.Int, "Input size of layer must be an integer: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
 
         var outputsize = this.visit(ctx.output_size);
-        ASSERT(outputsize instanceof ExprNode, "Output size of layer must be an expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
+        Utils.ASSERT(outputsize instanceof ExprNode, "Output size of layer must be an expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
         result.OutputSize = (ExprNode) outputsize;
-        ASSERT(result.OutputSize.Types.size() == 1, "Output size of layer must be a single value expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
-        ASSERT(result.OutputSize.Types.get(0) == TypeEnum.Int, "Output size of layer must be an integer: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
+        Utils.ASSERT(result.OutputSize.Type instanceof BaseType, "Output size of layer must be a single value expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
+        Utils.ASSERT(((BaseType) result.OutputSize.Type).Type == TypeEnum.Int, "Output size of layer must be an integer: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
 
         result.ActivationFunction = ctx.activation_function.getText();
         return result;
@@ -169,15 +192,22 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public ModelNode visitModellit(FNNParser.ModellitContext ctx) {
         var result = new ModelNode();
-        result.Types.add(TypeEnum.Model);
+        result.Type = new BaseType(TypeEnum.Model);
         result.Layers = new Vector<>();
         for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all the expressions without the "model<>" part
             var layer = this.visit(expr);
-            ASSERT(layer instanceof ExprNode, "Model parameters must be expressions: " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
+            Utils.ASSERT(layer instanceof ExprNode, "Model parameters must be expressions: " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
             var exprNode = (ExprNode) layer;
-            for (TypeEnum type : exprNode.Types) {
-                ASSERT(type == TypeEnum.Layer, "Model parameters must be layers, not " + TYPE_LIST_TO_STRING(exprNode.Types) + ": " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
-                result.Layers.add(exprNode);
+            if (exprNode.Type instanceof TupleType) {
+                for (FNNType type : ((TupleType) exprNode.Type).Types) {
+                    Utils.ASSERT(type instanceof BaseType, "Multiple nested tuples not supported for model declaration");
+                    Utils.ASSERT(((BaseType) type).Type == TypeEnum.Layer, "Model parameters must be layers, not " + exprNode.Type + ": " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
+                    result.Layers.add(exprNode);
+                }
+            } else if (exprNode.Type instanceof BaseType) {
+
+            } else {
+                Utils.ERREXIT("Paramters in model cannot be of type: " + exprNode.Type);
             }
         }
         return result;
@@ -186,7 +216,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public StringNode visitStrlit(FNNParser.StrlitContext ctx) {
         var result = new StringNode();
-        result.Types.add(TypeEnum.String);
+        result.Type = new BaseType(TypeEnum.String);
         result.Value = ctx.STR_CONTENT().getText();
         if (result.Value == null)
             result.Value = "";
@@ -197,23 +227,135 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public TrainNode visitTrain_stmt(FNNParser.Train_stmtContext ctx) {
         var result = new TrainNode();
         var epochs = this.visit(ctx.epochs);
-        ASSERT(epochs instanceof ExprNode, "Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        Utils.ASSERT(epochs instanceof ExprNode, "Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
         result.Epochs = (ExprNode) epochs;
-        ASSERT(result.Epochs.Types.size() == 1, "Epoch in training must be a single value expression");
-        ASSERT(result.Epochs.Types.get(0) != TypeEnum.Int, "Epochs in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        Utils.ASSERT(result.Epochs.Type instanceof BaseType, "Epoch in training must be a single value expression");
+        Utils.ASSERT(((BaseType) result.Epochs.Type).Type == TypeEnum.Int, "Epochs in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
         var batchSize = this.visit(ctx.batch_size);
-        ASSERT(batchSize instanceof ExprNode, "Batch size in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-        ASSERT(result.BatchSize.Types.size() == 1, "Batch size in training must be a single value expression");
+        Utils.ASSERT(batchSize instanceof ExprNode, "Batch size in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        Utils.ASSERT(result.BatchSize.Type instanceof BaseType, "Batch size in training must be a single value expression");
         result.BatchSize = (ExprNode) batchSize;
-        ASSERT(result.BatchSize.Types.get(0) != TypeEnum.Int, "Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        Utils.ASSERT(((BaseType) result.BatchSize.Type).Type == TypeEnum.Int, "Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
         var model = this.visit(ctx.model);
-        ASSERT(model instanceof ExprNode, "Model in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-        ASSERT(result.Model.Types.size() == 1, "Model in training must be a single value expression");
+        Utils.ASSERT(model instanceof ExprNode, "Model in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        Utils.ASSERT(result.Model.Type instanceof BaseType, "Model in training must be a single value expression");
         result.Model = (ExprNode) model;
-        ASSERT(result.Model.Types.get(0) != TypeEnum.Model, "Model in training must be an model: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        Utils.ASSERT(((BaseType) result.Model.Type).Type == TypeEnum.Model, "Model in training must be an model: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
+        return result;
+    }
+
+    @Override
+    public CallNode visitCall(FNNParser.CallContext ctx) {
+        var result = new CallNode();
+        var func_expr = this.visit(ctx.func);
+        Utils.ASSERT(func_expr instanceof ExprNode, "Attempting to call non expression");
+        result.Function = (ExprNode) func_expr;
+        Utils.ASSERT(result.Function.Type instanceof FuncType, "Attempting to call expression that doesn't evaluate to a function");
+        var args_node = this.visit(ctx.exprs);
+        Utils.ASSERT(args_node instanceof ExprListNode, "I'm still not entirely sure when you'd get this error... exprs is somehow not a list of exprs");
+        var func_type = (FuncType) ((ExprNode) func_expr).Type;
+        TupleType arg_type = new TupleType();
+        for (var expr : ((ExprListNode) args_node).Exprs) {
+            arg_type.Types.add(expr.Type);
+        }
+
+        Utils.ASSERT(arg_type.equals(func_type.Arg), "Types in function call doesn't match, expected: " + func_type.Arg + ", got: " + arg_type);
+        result.Args = (((ExprListNode) args_node).Exprs);
+
+        result.Type = ((FuncType) result.Function.Type).Ret;
+
+        return result;
+    }
+
+    @Override
+    public ExternNode visitExtern(FNNParser.ExternContext ctx) {
+        var result = new ExternNode();
+        var name = ctx.ID().getText();
+
+        var type_node = this.visit(ctx.type());
+        Utils.ASSERT(type_node instanceof TypeNode, "Type of extern declaration bad");
+        var type = ((TypeNode) type_node).Type;
+
+        Scopes.peek().put(name, type);
+
+        System.out.println("DCLR EXTERN: " + name + " : " + type);
+
+        result.Name = name;
+        result.Type = type;
+        return result;
+    }
+
+    @Override
+    public TypeNode visitBasetypelit(FNNParser.BasetypelitContext ctx) {
+        var result = new TypeNode();
+        switch (ctx.BASETYPE().getText()) {
+        case "STR":
+            result.Type = new BaseType(TypeEnum.String);
+            break;
+        case "INT":
+            result.Type = new BaseType(TypeEnum.Int);
+            break;
+        case "FLT":
+            result.Type = new BaseType(TypeEnum.Float);
+            break;
+        case "LYR":
+            result.Type = new BaseType(TypeEnum.Layer);
+            break;
+        case "MDL":
+            result.Type = new BaseType(TypeEnum.Model);
+            break;
+        default:
+            Utils.ERREXIT("Mismatched basetype: " + ctx.BASETYPE().getText());
+            break;
+        }
+        return result;
+    }
+
+    @Override
+    public TypeNode visitFunctypelit(FNNParser.FunctypelitContext ctx) {
+        var result = new TypeNode();
+        var type = new FuncType();
+        var rets = this.visit(ctx.rets);
+        Utils.ASSERT(rets instanceof TypeListNode, "Specificed returntypes not actually a list of types somehow");
+        TupleType ret_tuple = new TupleType();
+        for (var return_type : ((TypeListNode) rets).Types) {
+            ret_tuple.Types.add(return_type.Type);
+        }
+        type.Ret = ret_tuple;
+        var args = this.visit(ctx.args);
+        Utils.ASSERT(args instanceof TypeListNode, "Specificed argumettypes not actually a list of types somehow");
+        TupleType arg_tuple = new TupleType();
+        for (var arg_type : ((TypeListNode) args).Types) {
+            arg_tuple.Types.add(arg_type.Type);
+        }
+        type.Arg = arg_tuple;
+        result.Type = type;
+        return result;
+    }
+
+    @Override
+    public TypeNode visitTupletypelit(FNNParser.TupletypelitContext ctx) {
+        var result = new TypeNode();
+        var type = new TupleType();
+        var types = this.visit(ctx.tupletypes);
+        Utils.ASSERT(types instanceof TypeListNode, "Specificed tupletypes not actually a list of types somehow");
+        for (var return_type : ((TypeListNode) types).Types) {
+            type.Types.add(return_type.Type);
+        }
+        result.Type = type;
+        return result;
+    }
+
+    @Override
+    public TypeNode visitArrtypelit(FNNParser.ArrtypelitContext ctx) {
+        var result = new TypeNode();
+        var arrtypenode = this.visit(ctx.arrtype);
+        Utils.ASSERT(arrtypenode instanceof TypeNode, "Type in array is not actually a type???? huh??");
+        var type = new ArrType(((TypeNode) arrtypenode).Type, 10); // TODO: something about the size??
+        result.Type = type;
         return result;
     }
 }

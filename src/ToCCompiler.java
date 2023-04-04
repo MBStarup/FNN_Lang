@@ -1,5 +1,7 @@
 import java.lang.ProcessBuilder.Redirect.Type;
 
+import javax.naming.spi.DirStateFactory.Result;
+
 import org.antlr.v4.misc.Graph.Node;
 
 public class ToCCompiler {
@@ -119,7 +121,7 @@ public class ToCCompiler {
         return result;
     }
 
-    public String TypeEnumToString(TypeEnum Enum) {
+    public static String TypeEnumToString(TypeEnum Enum) {
         switch (Enum) {
         case Int:
             return "int";
@@ -138,6 +140,45 @@ public class ToCCompiler {
         }
 
         return null;
+    }
+
+    public static String TypeToString(FuncType Type) {
+        String result = "";
+        result += "void (*)("; // all funcitons return void
+        var argsString = TypeToString(Type.Arg);
+        argsString.replace(",", "*,");
+        result += argsString;
+        result += TypeToString(Type.Ret);
+        result += ")";
+        return result;
+    }
+
+    public static String TypeToString(TupleType Type) {
+        String result = "";
+        Utils.ASSERT(Type.Types.size() > 0, "Empty tuple"); // TODO: consider allowing empty tuples
+        result += TypeToString(Type.Types.get(0));
+        for (int i = 1; i < Type.Types.size(); i++) {
+            result += ",";
+            result += TypeToString(Type.Types.get(i));
+        }
+        return result;
+    }
+
+    public static String TypeToString(BaseType Type) {
+        return TypeEnumToString(Type.Type);
+    }
+
+    public static String TypeToString(FNNType Type) {
+        if (Type instanceof BaseType) {
+            return TypeToString((BaseType) Type);
+        } else if (Type instanceof FuncType) {
+            return TypeToString((FuncType) Type);
+        } else if (Type instanceof TupleType) {
+            return TypeToString((TupleType) Type);
+        } else {
+            Utils.ERREXIT("Unknown type type, maybe update switch case");
+            return null; // unreachable
+        }
     }
 
     public String Compile(FloatNode Node) {
@@ -209,15 +250,37 @@ public class ToCCompiler {
 
     public String Compile(AssignNode Node) {
         String result = "";
-        for (int i = 0; i < Node.Names.size(); i++) {
-            result += TypeEnumToString(Node.Types.get(i));
-            result += " ";
-            result += Node.Names.get(i);
-            result += " = ";
-            result += this.Compile(Node.Value);
-            result += ";\n";
+
+        if (Node.Names.size() == 1) {
+            if (Node.Types.get(0) instanceof BaseType) {
+                result += TypeToString((BaseType) Node.Types.get(0));
+                result += " ";
+                result += Node.Names.get(0);
+                result += " = ";
+                result += this.Compile(Node.Value);
+                result += ";\n";
+                return result;
+            } else if (Node.Types.get(0) instanceof FuncType) {
+                result += "void (*"; // all funcitons return void
+                result += Node.Names.get(0);
+                result += ")(";
+                result += TypeToString(((FuncType) Node.Types.get(0)).Ret);
+                result += "*,"; // TODO: THIS IS WRONFGE
+                result += TypeToString(((FuncType) Node.Types.get(0)).Arg);
+                result += ") = ";
+                result += this.Compile(Node.Value);
+                result += ";\n";
+                System.out.println("FUNC TYPE OUTPUT: " + result);
+                return result;
+            } else {
+                Utils.ERREXIT("IDK BIG ERROR");
+                return null; // unreachable
+            }
+        } else {
+            Utils.ERREXIT("Tuples not implemented yet");
+            return null; // unreachable
+            // TUPLES POOOOOOOOG
         }
-        return result;
     }
 
     public String Compile(TrainNode Node) {

@@ -4,10 +4,7 @@ public class CommandArgs {
     public Map<String, List<String>> Flags;
     public List<String> Rest;
 
-    String[][] commands = {
-            { "-no-remove-c", },
-            { "-o", "path" },
-    };
+    String[][] commands = { { "-no-remove-c", }, { "-o", "path" }, };
 
     public CommandArgs(String[] argv) {
         Flags = new HashMap<>();
