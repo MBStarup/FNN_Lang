@@ -1,8 +1,10 @@
+import java.lang.ProcessBuilder.Redirect.Type;
 import java.nio.channels.AsynchronousServerSocketChannel;
 import java.util.*;
 
 import org.antlr.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.stringtemplate.v4.compiler.STParser.ifstat_return;
 
 public class Visitor extends FNNBaseVisitor<AstNode> {
 
@@ -72,7 +74,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(result.Right.Type instanceof BaseType, "Binary operations can only be used on single value expressions");
         Utils.ASSERT(result.Left.Type instanceof BaseType, "Binary operations can only be used on single value expressions");
         // TODO: Consider other types
-        // result.Types.add(result.Right.Types.get(0) == FNNType.Int && result.Left.Types.get(0) == FNNType.Int ? FNNType.Int : FNNType.Float);
+        // result.Types.add(result.Right.Types.get(0) == FNNType.Int &&
+        // result.Left.Types.get(0) == FNNType.Int ? FNNType.Int : FNNType.Float);
         Utils.ASSERT(result.Left.Type == result.Right.Type, "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type);
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
@@ -112,15 +115,50 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         result.Value = (ExprNode) value;
         if (ctx.ID().size() > 1) {
             Utils.ASSERT(result.Value.Type instanceof TupleType, "Trying to match non tuple type, " + result.Value.Type + ", to multiple names");
-            Utils.ASSERT(((TupleType) result.Value.Type).Types.size() == ctx.ID().size(), "Match failure in assign, mismatched amount"); // TODO: if amount mismatch, we need to try to unwrap a layer of the tuple
-            for (int i = 0; i < ctx.ID().size(); i++) {
-                var name = ctx.ID(i).getText();
-                result.Types.add(((TupleType) result.Value.Type).Types.get(i));
-                result.Names.add(name);
-                Scopes.peek().put(name, ((TupleType) result.Value.Type).Types.get(i));
-                System.out.println("ASSIGN: " + name + " : " + ((TupleType) result.Value.Type).Types.get(i));
+            var tuple = (TupleType) result.Value.Type;
+            Utils.ASSERT((tuple.Types.size() <= ctx.ID().size()), "Match failure in assign, mismatched amount");
+            Queue<FNNType> right = new LinkedList<>(tuple.Types);
+            Queue<FNNType> left = new LinkedList<>();
+            if (ctx.ID().size() != tuple.Types.size()) {
+                boolean did_we_unpack_tuples = false;
+                while (left.size() + right.size() != ctx.ID().size()) {
+                    var current = right.remove();
+                    if (!(current instanceof TupleType)) {
+                        left.add(current);
+                    } else {
+                        did_we_unpack_tuples = true;
+                        for (var t : ((TupleType) current).Types) {
+                            left.add(t);
+                        }
+                    }
+                    if (right.size() == 0) {
+                        Utils.ASSERT(did_we_unpack_tuples, "Number of variables do not match number of elements in tuple" + ctx.getStart() + ":" + ctx.getStop());
+                        var temp = right;
+                        right = left;
+                        left = temp;
+                    }
+                }
             }
-        } else {
+            int i = 0;
+            while (left.size() > 0) {
+                var name = ctx.ID(i++).getText();
+                var type = left.remove();
+                result.Types.add(type);
+                result.Names.add(name);
+                Scopes.peek().put(name, type);
+                System.out.println("ASSIGN: " + name + " : " + type);
+            }
+            while (right.size() > 0) {
+                var name = ctx.ID(i++).getText();
+                var type = right.remove();
+                result.Types.add(type);
+                result.Names.add(name);
+                Scopes.peek().put(name, type);
+                System.out.println("ASSIGN: " + name + " : " + type);
+            }
+        }
+
+        else {
             var name = ctx.ID(0).getText();
             result.Types.add(result.Value.Type);
             result.Names.add(name);
@@ -194,7 +232,9 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var result = new ModelNode();
         result.Type = new BaseType(TypeEnum.Model);
         result.Layers = new Vector<>();
-        for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all the expressions without the "model<>" part
+        for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all
+                                                                            // the expressions without the "model<>"
+                                                                            // part
             var layer = this.visit(expr);
             Utils.ASSERT(layer instanceof ExprNode, "Model parameters must be expressions: " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
             var exprNode = (ExprNode) layer;
@@ -234,14 +274,14 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var batchSize = this.visit(ctx.batch_size);
         Utils.ASSERT(batchSize instanceof ExprNode, "Batch size in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-        Utils.ASSERT(result.BatchSize.Type instanceof BaseType, "Batch size in training must be a single value expression");
         result.BatchSize = (ExprNode) batchSize;
+        Utils.ASSERT(result.BatchSize.Type instanceof BaseType, "Batch size in training must be a single value expression");
         Utils.ASSERT(((BaseType) result.BatchSize.Type).Type == TypeEnum.Int, "Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
         var model = this.visit(ctx.model);
         Utils.ASSERT(model instanceof ExprNode, "Model in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-        Utils.ASSERT(result.Model.Type instanceof BaseType, "Model in training must be a single value expression");
         result.Model = (ExprNode) model;
+        Utils.ASSERT(result.Model.Type instanceof BaseType, "Model in training must be a single value expression");
         Utils.ASSERT(((BaseType) result.Model.Type).Type == TypeEnum.Model, "Model in training must be an model: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
         return result;

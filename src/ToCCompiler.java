@@ -35,6 +35,8 @@ public class ToCCompiler {
             return Compile((AssignNode) Node);
         else if (Node instanceof TrainNode)
             return Compile((TrainNode) Node);
+        else if (Node instanceof ExternNode)
+            return Compile((ExternNode) Node);
         else {
             System.err.println("Unexpected StmtNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
             System.exit(-1);
@@ -265,7 +267,7 @@ public class ToCCompiler {
                 result += Node.Names.get(0);
                 result += ")(";
                 result += TypeToString(((FuncType) Node.Types.get(0)).Ret);
-                result += "*,"; // TODO: THIS IS WRONFGE
+                result += "*,"; // TODO: THIS IS WRONG
                 result += TypeToString(((FuncType) Node.Types.get(0)).Arg);
                 result += ") = ";
                 result += this.Compile(Node.Value);
@@ -277,7 +279,7 @@ public class ToCCompiler {
                 return null; // unreachable
             }
         } else {
-            Utils.ERREXIT("Tuples not implemented yet");
+            result += ;
             return null; // unreachable
             // TUPLES POOOOOOOOG
         }
@@ -293,6 +295,35 @@ public class ToCCompiler {
         result += ", training_data_input, training_expected_output, TRAINING_DATA_AMOUNT";
         result += "))";
         return result;
+    }
+
+    public String Compile(ExternNode Node) {
+        return "";
+    }
+
+    public String Declare(String name, FNNType type) {
+        String result = "";
+        if (type instanceof BaseType) {
+            result += TypeToString((BaseType) type);
+            result += " ";
+            result += name;
+            return result;
+        } else if (type instanceof FuncType) {
+            result += "void (*"; // all funcitons return void
+            result += name;
+            result += ")(";
+            result += TypeToString(((FuncType) type).Ret);
+            result += "*,"; // TODO: THIS IS WRONG
+            result += TypeToString(((FuncType) type).Arg);
+            result += ")";
+            return result;
+        } else if (type instanceof ArrType) {
+            result += Declare(name, type) + "[";
+
+        } else {
+            Utils.ERREXIT("IDK BIG ERROR");
+            return null; // unreachable
+        }
     }
 
 }

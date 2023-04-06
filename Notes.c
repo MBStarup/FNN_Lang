@@ -73,4 +73,15 @@ int main(int argc, char const *argv[])
     printf("%d\n", a);
 
     return 0;
+
+    //(x y): make_tuple(10 20)
+    int x;
+    int y;
+    {
+        int TEMP0;
+        int TEMP1;
+        make_tuple(&TEMP0, &TEMP1, 10, 20);
+        x = TEMP0;
+        y = TEMP1;
+    }
 }
