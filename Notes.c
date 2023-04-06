@@ -84,4 +84,42 @@ int main(int argc, char const *argv[])
         x = TEMP0;
         y = TEMP1;
     }
+
+    int a_T1;
+    int a_T2;
+    {
+        int TEMP0;
+        int TEMP1;
+        make_tuple(&TEMP0, &TEMP1, 10, 20);
+        a_T1 = TEMP0;
+        a_T2 = TEMP1;
+    }
+
+    int a;
+    {
+        int TEMP0;
+        TEMP0 = 2 + 4;
+        a = TEMP0;
+    }
+
+    // a: square(square(2));
+    int a = ;
+    int FINAL0;
+    {
+        int TEMP0;
+        square(&TEMP0, 2);
+        {
+        int TEMP1;
+        square(&TEMP1, TEMP0);
+        FINAL0 = TEMP1;
+        }    
+    }
+    FINAL0;
+
+
+
+
+
+
+
 }

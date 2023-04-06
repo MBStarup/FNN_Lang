@@ -144,6 +144,13 @@ public class ToCCompiler {
         return null;
     }
 
+    public static String TypeToString(ArrType Type){
+        String result = "";
+        result += TypeToString(Type.Type);
+        result += " *";
+        return result;
+    }
+
     public static String TypeToString(FuncType Type) {
         String result = "";
         result += "void (*)("; // all funcitons return void
@@ -182,6 +189,8 @@ public class ToCCompiler {
             return null; // unreachable
         }
     }
+
+
 
     public String Compile(FloatNode Node) {
         String result = "(";
@@ -255,25 +264,27 @@ public class ToCCompiler {
 
         if (Node.Names.size() == 1) {
             if (Node.Types.get(0) instanceof BaseType) {
-                result += TypeToString((BaseType) Node.Types.get(0));
-                result += " ";
-                result += Node.Names.get(0);
+                result += Declare(Node.Names.get(0), Node.Types.get(0));
                 result += " = ";
                 result += this.Compile(Node.Value);
                 result += ";\n";
                 return result;
             } else if (Node.Types.get(0) instanceof FuncType) {
-                result += "void (*"; // all funcitons return void
-                result += Node.Names.get(0);
-                result += ")(";
-                result += TypeToString(((FuncType) Node.Types.get(0)).Ret);
-                result += "*,"; // TODO: THIS IS WRONG
-                result += TypeToString(((FuncType) Node.Types.get(0)).Arg);
-                result += ") = ";
+                result += Declare(Node.Names.get(0), Node.Types.get(0));
+                result += " = ";
                 result += this.Compile(Node.Value);
                 result += ";\n";
                 System.out.println("FUNC TYPE OUTPUT: " + result);
                 return result;
+            }else if (Node.Types.get(0) instanceof ArrType) {
+                result += Declare(Node.Names.get(0), Node.Types.get(0));
+                result += " = ";
+                result += this.Compile(Node.Value);
+                result += ";\n";
+            }else if (Node.Types.get(0) instanceof TupleType) {
+                
+                
+            }
             } else {
                 Utils.ERREXIT("IDK BIG ERROR");
                 return null; // unreachable
@@ -318,7 +329,9 @@ public class ToCCompiler {
             result += ")";
             return result;
         } else if (type instanceof ArrType) {
-            result += Declare(name, type) + "[";
+            result += TypeToString((ArrType) type);
+            result += name;
+            return result;
 
         } else {
             Utils.ERREXIT("IDK BIG ERROR");
