@@ -8,4 +8,14 @@ public class Utils {
         if (!(predicate))
             ERREXIT(fail_msg);
     }
+
+    static FNNType TRY_UNWRAP(FNNType type) {
+        if (!(type instanceof TupleType)) {
+            return type;
+        }
+        if (((TupleType) type).Types.size() > 1) {
+            return type;
+        }
+        return TRY_UNWRAP(((TupleType) type).Types.get(0));
+    }
 }

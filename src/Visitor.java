@@ -92,7 +92,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(op instanceof ExprNode, "Left operand of bi-operator was not an expression: " + ctx.op.getStart() + " to " + ctx.op.getStop());
         result.Operand = (ExprNode) op;
         Utils.ASSERT(result.Operand.Type instanceof BaseType, "Unary operations can only be used on single value expressions");
-        result.Type = result.Operand.Type;
+        result.Type = Utils.TRY_UNWRAP(result.Operand.Type);
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
 
@@ -132,7 +132,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
                         }
                     }
                     if (right.size() == 0) {
-                        Utils.ASSERT(did_we_unpack_tuples, "Number of variables do not match number of elements in tuple" + ctx.getStart() + ":" + ctx.getStop());
+                        Utils.ASSERT(did_we_unpack_tuples, "Number of variables do not match number of elements in tuple" + ctx.getStart() + " : " + ctx.getStop());
                         var temp = right;
                         right = left;
                         left = temp;
@@ -176,7 +176,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             if (type != null) {
                 System.out.println("EVAL: " + name + " : " + type);
                 EvalNode result = new EvalNode();
-                result.Type = type;
+                result.Type = Utils.TRY_UNWRAP(type);
                 result.Name = name;
                 return result;
             }
@@ -232,9 +232,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var result = new ModelNode();
         result.Type = new BaseType(TypeEnum.Model);
         result.Layers = new Vector<>();
-        for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all
-                                                                            // the expressions without the "model<>"
-                                                                            // part
+        for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all the expressions without the "model<>" part
             var layer = this.visit(expr);
             Utils.ASSERT(layer instanceof ExprNode, "Model parameters must be expressions: " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
             var exprNode = (ExprNode) layer;
@@ -245,7 +243,9 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
                     result.Layers.add(exprNode);
                 }
             } else if (exprNode.Type instanceof BaseType) {
-
+                Utils.ASSERT(exprNode.Type instanceof BaseType, "Multiple nested tuples not supported for model declaration");
+                Utils.ASSERT(((BaseType) exprNode.Type).Type == TypeEnum.Layer, "Model parameters must be layers, not " + exprNode.Type + ": " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
+                result.Layers.add(exprNode);
             } else {
                 Utils.ERREXIT("Paramters in model cannot be of type: " + exprNode.Type);
             }
@@ -305,7 +305,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(arg_type.equals(func_type.Arg), "Types in function call doesn't match, expected: " + func_type.Arg + ", got: " + arg_type);
         result.Args = (((ExprListNode) args_node).Exprs);
 
-        result.Type = ((FuncType) result.Function.Type).Ret;
+        result.Type = Utils.TRY_UNWRAP(((FuncType) result.Function.Type).Ret);
 
         return result;
     }
@@ -324,7 +324,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         System.out.println("DCLR EXTERN: " + name + " : " + type);
 
         result.Name = name;
-        result.Type = type;
+        result.Type = Utils.TRY_UNWRAP(type);
         return result;
     }
 
@@ -372,7 +372,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             arg_tuple.Types.add(arg_type.Type);
         }
         type.Arg = arg_tuple;
-        result.Type = type;
+        result.Type = Utils.TRY_UNWRAP(type);
         return result;
     }
 
@@ -385,7 +385,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         for (var return_type : ((TypeListNode) types).Types) {
             type.Types.add(return_type.Type);
         }
-        result.Type = type;
+        result.Type = Utils.TRY_UNWRAP(type);
         return result;
     }
 
@@ -395,7 +395,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var arrtypenode = this.visit(ctx.arrtype);
         Utils.ASSERT(arrtypenode instanceof TypeNode, "Type in array is not actually a type???? huh??");
         var type = new ArrType(((TypeNode) arrtypenode).Type, 10); // TODO: something about the size??
-        result.Type = type;
+        result.Type = Utils.TRY_UNWRAP(type);
         return result;
     }
 }

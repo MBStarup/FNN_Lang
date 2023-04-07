@@ -1,7 +1,10 @@
 import java.lang.ProcessBuilder.Redirect.Type;
+import java.util.List;
+import java.util.Vector;
 
 import javax.naming.spi.DirStateFactory.Result;
 
+import org.antlr.v4.codegen.model.decl.Decl;
 import org.antlr.v4.misc.Graph.Node;
 
 public class ToCCompiler {
@@ -14,12 +17,12 @@ public class ToCCompiler {
 
     public String Compile(ProgramNode Node) {
         String result = "#include <stdio.h>\n#include \"c_ml_base.c\"\n";
-        result += "#define TRAINING_DATA_AMOUNT 12\n";
+        // result += "#define TRAINING_DATA_AMOUNT 12\n";
         result += "int main(int argc, char* argv[]){";
-        result += "    double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble *training_expected_output[TRAINING_DATA_AMOUNT];\nload_csv(training_expected_output, OUTPUT_SIZE, training_data_input, INPUT_SIZE, TRAINING_DATA_AMOUNT, \"../c_ml/mnist_train.csv\", 5);\n";
-        result += "    activation sigmoid_activationfunction;\nsigmoid_activationfunction.function = sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
-        for (StmtNode exprNode : Node.Stmts) {
-            result += Compile(exprNode);
+        // result += " double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble *training_expected_output[TRAINING_DATA_AMOUNT];\nload_csv(training_expected_output, OUTPUT_SIZE, training_data_input, INPUT_SIZE, TRAINING_DATA_AMOUNT, \"../c_ml/mnist_train.csv\", 5);\n";
+        result += " activation sigmoid_activationfunction;\nsigmoid_activationfunction.function = sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
+        for (StmtNode stmt : Node.Stmts) {
+            result += Compile(stmt);
             result += ";";
         }
         result += "return 0;}";
@@ -61,6 +64,10 @@ public class ToCCompiler {
             return Compile((EvalNode) Node);
         else if (Node instanceof StringNode)
             return Compile((StringNode) Node);
+        else if (Node instanceof CallNode)
+            return Compile((CallNode) Node);
+        else if (Node instanceof TupleNode)
+            return Compile((TupleNode) Node);
         else {
             System.err.println("Unexpected ExprNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
             System.exit(-1);
@@ -128,7 +135,7 @@ public class ToCCompiler {
         case Int:
             return "int";
         case Float:
-            return "float";
+            return "double";
         case Layer:
             return "layer";
         case String:
@@ -144,7 +151,7 @@ public class ToCCompiler {
         return null;
     }
 
-    public static String TypeToString(ArrType Type){
+    public static String TypeToString(ArrType Type) {
         String result = "";
         result += TypeToString(Type.Type);
         result += " *";
@@ -184,13 +191,13 @@ public class ToCCompiler {
             return TypeToString((FuncType) Type);
         } else if (Type instanceof TupleType) {
             return TypeToString((TupleType) Type);
+        } else if (Type instanceof ArrType) {
+            return TypeToString((ArrType) Type);
         } else {
-            Utils.ERREXIT("Unknown type type, maybe update switch case");
+            Utils.ERREXIT("Unknown type " + Type + ", maybe update switch case");
             return null; // unreachable
         }
     }
-
-
 
     public String Compile(FloatNode Node) {
         String result = "(";
@@ -254,46 +261,43 @@ public class ToCCompiler {
 
     public String Compile(EvalNode Node) {
         String result = "(";
-        result += Node.Name;
+        if (Node.Type instanceof FuncType) {
+            result += "*" + Node.Name;
+        } else {
+            result += Node.Name;
+        }
         result += ")";
         return result;
     }
 
     public String Compile(AssignNode Node) {
         String result = "";
-
         if (Node.Names.size() == 1) {
-            if (Node.Types.get(0) instanceof BaseType) {
-                result += Declare(Node.Names.get(0), Node.Types.get(0));
-                result += " = ";
-                result += this.Compile(Node.Value);
-                result += ";\n";
-                return result;
-            } else if (Node.Types.get(0) instanceof FuncType) {
-                result += Declare(Node.Names.get(0), Node.Types.get(0));
-                result += " = ";
-                result += this.Compile(Node.Value);
-                result += ";\n";
-                System.out.println("FUNC TYPE OUTPUT: " + result);
-                return result;
-            }else if (Node.Types.get(0) instanceof ArrType) {
-                result += Declare(Node.Names.get(0), Node.Types.get(0));
-                result += " = ";
-                result += this.Compile(Node.Value);
-                result += ";\n";
-            }else if (Node.Types.get(0) instanceof TupleType) {
-                
-                
-            }
-            } else {
-                Utils.ERREXIT("IDK BIG ERROR");
-                return null; // unreachable
-            }
+            result += Declare(Node.Names.get(0), Node.Types.get(0));
+            result += " = ";
+            result += this.Compile(Node.Value);
+            result += ";\n";
         } else {
-            result += ;
-            return null; // unreachable
-            // TUPLES POOOOOOOOG
+            for (int i = 0; i < Node.Names.size(); i++) {
+                result += Declare(Node.Names.get(i), Node.Types.get(i));
+                result += ";";
+            }
+            result += "{";
+            result += "void **TEMP = ";
+            result += Compile(Node.Value);
+            result += ";";
+            for (int i = 0; i < Node.Names.size(); i++) {
+                result += Node.Names.get(i);
+                result += " = (*((";
+                result += TypeToString(Node.Types.get(i));
+                result += "*)(TEMP[";
+                result += i;
+                result += "])));";
+            }
+            result += "}";
         }
+        System.out.println("Assign: " + result);
+        return result;
     }
 
     public String Compile(TrainNode Node) {
@@ -303,22 +307,77 @@ public class ToCCompiler {
         result += this.Compile(Node.Epochs);
         result += ",";
         result += this.Compile(Node.BatchSize);
+        // TODO: START HERE!, make the data paramerters of the TrainNode
         result += ", training_data_input, training_expected_output, TRAINING_DATA_AMOUNT";
         result += "))";
         return result;
     }
 
     public String Compile(ExternNode Node) {
-        return "";
+        String result = "";
+        result += Declare(Node.Name, Node.Type);
+        result += " = ";
+        if (Node.Type instanceof FuncType) {
+            result += "&" + "E_" + Node.Name;
+        } else {
+            result += "E_" + Node.Name;
+        }
+        result += ";";
+        return result;
+    }
+
+    public String Compile(CallNode Node) {
+        String result = "";
+        List<FNNType> ret_types;
+
+        if (Node.Type instanceof TupleType) {
+            ret_types = ((TupleType) Node.Type).Types;
+        } else {
+            ret_types = new Vector<FNNType>();
+            ret_types.add(Node.Type);
+        }
+        result += "({";
+        for (int i = 0; i < ret_types.size(); i++) {
+            result += Declare("TEMP" + i, ret_types.get(i));
+            result += ";";
+        }
+        result += Compile(Node.Function);
+        result += "(";
+        if (ret_types.size() > 0) {
+            result += "&TEMP0";
+            for (int i = 1; i < ret_types.size(); i++) {
+                result += ",";
+                result += "&TEMP" + i;
+            }
+        }
+        for (int i = 0; i < Node.Args.size(); i++) {
+            result += ",";
+            result += Compile(Node.Args.get(i));
+        }
+        result += ");";
+        if (ret_types.size() == 1) {
+            result += "TEMP0;";
+        }
+        // TODO: generalize this with the same exact hard coded shit in TupleNode, we don't even make tuple nodes...
+        if (ret_types.size() > 1) {
+            result += "(void*[]){&TEMP0";
+            for (int i = 1; i < ret_types.size(); i++) {
+                result += ",";
+                result += "&TEMP" + i;
+            }
+            result += "}";
+        }
+        result += ";})";
+        return result;
     }
 
     public String Declare(String name, FNNType type) {
+        System.out.println("Declare: " + name + " : " + type);
         String result = "";
         if (type instanceof BaseType) {
             result += TypeToString((BaseType) type);
             result += " ";
             result += name;
-            return result;
         } else if (type instanceof FuncType) {
             result += "void (*"; // all funcitons return void
             result += name;
@@ -327,16 +386,41 @@ public class ToCCompiler {
             result += "*,"; // TODO: THIS IS WRONG
             result += TypeToString(((FuncType) type).Arg);
             result += ")";
-            return result;
         } else if (type instanceof ArrType) {
             result += TypeToString((ArrType) type);
             result += name;
-            return result;
-
+        } else if (type instanceof TupleType) {
+            result += "void **";
+            result += name;
         } else {
             Utils.ERREXIT("IDK BIG ERROR");
             return null; // unreachable
         }
+        return result;
+    }
+
+    public String Compile(TupleNode Node) {
+        String result = "({";
+        Utils.ASSERT(Node.Type instanceof TupleType, "Type of tuple node isn't a tuple type guh"); // TODO: maybe redundant tbh
+        var type = (TupleType) Node.Type;
+
+        for (int i = 0; i < type.Types.size(); i++) {
+            result += Declare("T" + i, type.Types.get(i));
+            result += ";";
+        }
+
+        for (int i = 0; i < type.Types.size(); i++) {
+            result += "T" + i + " = " + Compile(Node.Exprs.get(i)) + ";";
+        }
+
+        result += "(void*[]){";
+        for (int i = 0; i < type.Types.size(); i++) {
+            result += "&T" + i + ",";
+        }
+        result += "};";
+
+        result += "})";
+        return result;
     }
 
 }

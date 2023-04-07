@@ -16,6 +16,7 @@ expr
 	| left_op = expr OPERATOR right_op = expr															# biop
 	| OPERATOR op = expr																				# unop
 	| '(' expr_in_parens = expr ')'																		# parens
+	| '(' exprs = exprlist ')'																			# tuplelit
 	| func = expr '(' exprs = exprlist ')'																# call
 	| ID																								# eval
 	| 'DENSE' '(' input_size = expr output_size = expr activation_function = ACTIVATION_FUNCTION ')'	# layerlit

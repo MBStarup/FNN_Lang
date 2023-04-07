@@ -25,16 +25,16 @@ public class Main {
 
         fw.write(compiler.Compile((ProgramNode) visitor.visitProgram(p_tree)));
         fw.close();
-        var process = new ProcessBuilder("gcc", "out.c").start();
+        // var process = new ProcessBuilder("gcc", "out.c").start();
 
-        // Print gcc output
-        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-        process.waitFor();
-        System.out.printf("gcc output:");
-        String line;
-        while ((line = reader.readLine()) != null) {
-            System.out.println(line);
-        }
+        // // Print gcc output
+        // BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        // process.waitFor();
+        // System.out.printf("gcc output:");
+        // String line;
+        // while ((line = reader.readLine()) != null) {
+        // System.out.println(line);
+        // }
         // end print gcc output
 
         // new File("out.c").delete();

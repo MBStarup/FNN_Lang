@@ -124,6 +124,27 @@ model model_new(int amount, ...)
     return result;
 }
 
+int E_number = 69;
+
+void E_square(int *r, int a) { *r = a * a; }
+
+// char *arr_new(size_t amount, size_t elem_size, ...)
+// {
+//     char *result = ass_malloc(amount * elem_size);
+//     ((size_t *)result)[-1] = amount;
+
+//     va_list valist;
+//     va_start(valist, amount * elem_size);
+
+//     for (size_t i = 0; i < amount * elem_size; i++)
+//     {
+//         result[i] = va_arg(valist, char);
+//     }
+
+//     va_end(valist);
+//     return result;
+// }
+
 // Shuffles an array by repeadedly picking two random indexes and swapping them arr_length * SHUFFLE_N times
 // ------------------------------
 // arr_length: the amount of elements in the array, accepted values: {1 .. SIZE_MAX}
@@ -393,11 +414,14 @@ void train_model(model model, int epochs, int batch_size, double **input_data, d
     }
 }
 
-void load_csv(double ***expected_outputs, double ***input_data, char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size){
-    *expected_outputs = ass_malloc(sizeof(size_t) + sizeof(double*) * data_amount);
-    *input_data = ass_malloc(sizeof(size_t) + sizeof(double*) * data_amount);
-    ((size_t*)(*expected_outputs))[-1] = data_amount;
-    ((size_t*)(*input_data))[-1] = data_amount;
+// Expects the datqa to be formatted as lines in a csv, where the first elem is the correct index in the output categories, and the rest is the input data.
+// largest_elem_size is the amount of chars in hte largest single element in the data, without the comma. Used for buffer allocation.
+void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size)
+{
+    *expected_outputs = ass_malloc(sizeof(size_t) + sizeof(double *) * data_amount);
+    *input_data = ass_malloc(sizeof(size_t) + sizeof(double *) * data_amount);
+    ((size_t *)(*expected_outputs))[-1] = data_amount;
+    ((size_t *)(*input_data))[-1] = data_amount;
 
     printf("Opening file: %s\n", filepath);
     FILE *fptr = fopen(filepath, "r");
@@ -411,10 +435,10 @@ void load_csv(double ***expected_outputs, double ***input_data, char *filepath, 
     printf("\n");
     for (int i = 0; i < data_amount; i++)
     {
-        (*expected_outputs)[i] = ((int*)ass_malloc(sizeof(size_t) + sizeof(double) * output_size))[1]; // TODO: free
-        (*input_data)[i] = ((int*)ass_malloc(sizeof(size_t) + sizeof(double) * input_size))[1];        // TODO: free
-        ((size_t*)((*expected_outputs)[i]))[-1] = output_size;
-        ((size_t*)((*input_data)[i]))[-1] = input_size;
+        (*expected_outputs)[i] = ((int *)ass_malloc(sizeof(size_t) + sizeof(double) * output_size))[1]; // TODO: free
+        (*input_data)[i] = ((int *)ass_malloc(sizeof(size_t) + sizeof(double) * input_size))[1];        // TODO: free
+        ((size_t *)((*expected_outputs)[i]))[-1] = output_size;
+        ((size_t *)((*input_data)[i]))[-1] = input_size;
 
         char *line = fgets(file_buffer, file_buffer_size, fptr);
         assert(line != NULL); // Ran out of lines when reading training data, make sure data_amount <= the amount of lines of atual data in the csv
@@ -432,48 +456,6 @@ void load_csv(double ***expected_outputs, double ***input_data, char *filepath, 
             {
                 token = strtok(NULL, ",");
                 (*input_data)[i][j] = atof(token);
-            }
-        }
-    }
-    fclose(fptr);
-    ass_free(file_buffer);
-}
-
-// Expects the datqa to be formatted as lines in a csv, where the first elem is the correct index in the output categories, and the rest is the input data.
-// largest_elem_size is the amount of chars in hte largest single element in the data, without the comma. Used for buffer allocation.
-void _load_csv(double **expected_outputs, int output_size, double **input_data, int input_size, int data_amount, char *filepath, int largest_elem_size)
-{
-    printf("Opening file: %s\n", filepath);
-    FILE *fptr = fopen(filepath, "r");
-
-    int file_buffer_size = (largest_elem_size + 1) * (input_size + 1); // make the buffer just big enough to hold a single line of well formatted data: input size (plus one for the label) times the size of the largest elem, plus 1 for comma, like "xxx,"
-    char *file_buffer = ass_malloc(sizeof(char) * file_buffer_size);
-
-    // the first line (the one that explains the layout).
-    fgets(file_buffer, file_buffer_size, fptr);
-
-    printf("\n");
-    for (int i = 0; i < data_amount; i++)
-    {
-        expected_outputs[i] = ass_malloc(sizeof(double) * output_size); // TODO: free
-        input_data[i] = ass_malloc(sizeof(double) * input_size);        // TODO: free
-
-        char *line = fgets(file_buffer, file_buffer_size, fptr);
-        assert(line != NULL); // Ran out of lines when reading training data, make sure data_amount <= the amount of lines of atual data in the csv
-        {
-            char *token = strtok(line, ",");
-            int label = atoi(token);
-            for (int j = 0; j < output_size; j++)
-            {
-                expected_outputs[i][j] = 0;
-            }
-
-            expected_outputs[i][label] = 1;
-
-            for (int j = 0; j < input_size; j++)
-            {
-                token = strtok(NULL, ",");
-                input_data[i][j] = atof(token);
             }
         }
     }
