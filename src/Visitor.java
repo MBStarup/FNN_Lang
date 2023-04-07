@@ -4,6 +4,7 @@ import java.util.*;
 
 import org.antlr.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.stringtemplate.v4.compiler.STParser.exprNoComma_return;
 import org.stringtemplate.v4.compiler.STParser.ifstat_return;
 
 public class Visitor extends FNNBaseVisitor<AstNode> {
@@ -30,8 +31,10 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         for (var antlr_stmt_node : ctx.children) {
             System.out.println("going to visit: " + antlr_stmt_node.getText());
             var ast_stmt_node = this.visit(antlr_stmt_node);
-            Utils.ASSERT(ast_stmt_node instanceof StmtNode, "ASDASDASDASDDSDSDADASDSD");
-            result.Stmts.add((StmtNode) ast_stmt_node);
+            if (ast_stmt_node != null) { // TODO: figure out why this can happen
+                Utils.ASSERT(ast_stmt_node instanceof StmtNode, "Found " + ast_stmt_node + " in stmtList, which is not a statement");
+                result.Stmts.add((StmtNode) ast_stmt_node);
+            }
         }
         return result;
     }
@@ -50,6 +53,9 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override
     public TypeListNode visitTypelist(FNNParser.TypelistContext ctx) {
         var result = new TypeListNode();
+        if (ctx == null || ctx.children == null)
+            return result; // TODO: apparently we need to check this ain't null, so we need to do that everywhere else lmao
+
         for (var antlr_type_node : ctx.children) {
             var ast_type_node = this.visit(antlr_type_node);
             Utils.ASSERT(ast_type_node instanceof TypeNode, "Somehow we have a thing that was parsed to an typelist, but when visiting the children it doesn't result in an TypeNode");
@@ -232,7 +238,9 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var result = new ModelNode();
         result.Type = new BaseType(TypeEnum.Model);
         result.Layers = new Vector<>();
-        for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all the expressions without the "model<>" part
+        for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all
+                                                                            // the expressions without the "model<>"
+                                                                            // part
             var layer = this.visit(expr);
             Utils.ASSERT(layer instanceof ExprNode, "Model parameters must be expressions: " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
             var exprNode = (ExprNode) layer;
@@ -257,9 +265,11 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public StringNode visitStrlit(FNNParser.StrlitContext ctx) {
         var result = new StringNode();
         result.Type = new BaseType(TypeEnum.String);
-        result.Value = ctx.STR_CONTENT().getText();
-        if (result.Value == null)
+        var content = ctx.STR_CONTENT();
+        if (content == null)
             result.Value = "";
+        else
+            result.Value = content.getText();
         return result;
     }
 
@@ -283,6 +293,18 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         result.Model = (ExprNode) model;
         Utils.ASSERT(result.Model.Type instanceof BaseType, "Model in training must be a single value expression");
         Utils.ASSERT(((BaseType) result.Model.Type).Type == TypeEnum.Model, "Model in training must be an model: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+
+        var inputData = this.visit(ctx.input);
+        Utils.ASSERT(inputData instanceof ExprNode, "Input Data in train must be an expression: " + ctx.input.getStart() + " to " + ctx.input.getStop());
+        result.Input = (ExprNode) inputData;
+        Utils.ASSERT(result.Input.Type instanceof ArrType, "Input Data in train must be an array");
+        // TODO: more type checking, I can't be assed
+
+        var expectedOutput = this.visit(ctx.expected);
+        Utils.ASSERT(expectedOutput instanceof ExprNode, "Expected Output in train must be an expression: " + ctx.expected.getStart() + " to " + ctx.expected.getStop());
+        result.Expected = (ExprNode) expectedOutput;
+        Utils.ASSERT(result.Expected.Type instanceof ArrType, "Expected Putput in train must be an array");
+        // TODO: more type checking, I can't be assed
 
         return result;
     }

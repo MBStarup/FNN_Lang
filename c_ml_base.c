@@ -311,7 +311,7 @@ double derivative_of_sigmoid(double x)
     return sigmoid(x) * (1 - sigmoid(x));
 }
 
-void train_model(model model, int epochs, int batch_size, double **input_data, double **expected_output, int data_amount)
+void _train_model(model model, int epochs, int batch_size, double **input_data, double **expected_output, int data_amount)
 {
 
     int layer_amount = model.layer_amount;
@@ -414,6 +414,12 @@ void train_model(model model, int epochs, int batch_size, double **input_data, d
     }
 }
 
+void train_model(model model, int epochs, int batch_size, double **input_data, double **expected_output)
+{
+    int size = ((size_t *)expected_output)[-1];
+    _train_model(model, epochs, batch_size, input_data, expected_output, size);
+}
+
 // Expects the datqa to be formatted as lines in a csv, where the first elem is the correct index in the output categories, and the rest is the input data.
 // largest_elem_size is the amount of chars in hte largest single element in the data, without the comma. Used for buffer allocation.
 void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size)
@@ -461,4 +467,26 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
     }
     fclose(fptr);
     ass_free(file_buffer);
+}
+
+void E_print(int *r, char *str)
+{
+    *r = 0;
+    printf("%s", str);
+}
+void E_print_int(int *r, int i)
+{
+    *r = 0;
+    printf("%d", i);
+}
+void E_print_flt(int *r, double f)
+{
+    *r = 0;
+    printf("%lf", f);
+}
+
+void E_exit(int *r, int a)
+{
+    *r = a;
+    exit(a);
 }

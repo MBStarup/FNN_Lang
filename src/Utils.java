@@ -6,14 +6,17 @@ public class Utils {
 
     static void ASSERT(Boolean predicate, String fail_msg) {
         if (!(predicate))
-            ERREXIT(fail_msg);
+            ERREXIT("ERR: " + fail_msg);
     }
 
     static FNNType TRY_UNWRAP(FNNType type) {
+        if (type == null) {
+            return null;
+        }
         if (!(type instanceof TupleType)) {
             return type;
         }
-        if (((TupleType) type).Types.size() > 1) {
+        if (((TupleType) type).Types.size() != 1) {
             return type;
         }
         return TRY_UNWRAP(((TupleType) type).Types.get(0));

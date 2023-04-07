@@ -1,11 +1,5 @@
-import java.lang.ProcessBuilder.Redirect.Type;
 import java.util.List;
 import java.util.Vector;
-
-import javax.naming.spi.DirStateFactory.Result;
-
-import org.antlr.v4.codegen.model.decl.Decl;
-import org.antlr.v4.misc.Graph.Node;
 
 public class ToCCompiler {
     // public String Compile(AstNode Node) {
@@ -171,7 +165,7 @@ public class ToCCompiler {
 
     public static String TypeToString(TupleType Type) {
         String result = "";
-        Utils.ASSERT(Type.Types.size() > 0, "Empty tuple"); // TODO: consider allowing empty tuples
+        Utils.ASSERT(Type.Types.size() > 0, "Empty tuple. TODO: consider allowing empty tuples."); // TODO: consider allowing empty tuples
         result += TypeToString(Type.Types.get(0));
         for (int i = 1; i < Type.Types.size(); i++) {
             result += ",";
@@ -307,8 +301,10 @@ public class ToCCompiler {
         result += this.Compile(Node.Epochs);
         result += ",";
         result += this.Compile(Node.BatchSize);
-        // TODO: START HERE!, make the data paramerters of the TrainNode
-        result += ", training_data_input, training_expected_output, TRAINING_DATA_AMOUNT";
+        result += ",";
+        result += this.Compile(Node.Input);
+        result += ",";
+        result += this.Compile(Node.Expected);
         result += "))";
         return result;
     }
