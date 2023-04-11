@@ -14,7 +14,7 @@ public class ToCCompiler {
         // result += "#define TRAINING_DATA_AMOUNT 12\n";
         result += "int main(int argc, char* argv[]){";
         // result += " double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble *training_expected_output[TRAINING_DATA_AMOUNT];\nload_csv(training_expected_output, OUTPUT_SIZE, training_data_input, INPUT_SIZE, TRAINING_DATA_AMOUNT, \"../c_ml/mnist_train.csv\", 5);\n";
-        result += " activation sigmoid_activationfunction;\nsigmoid_activationfunction.function = sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
+        // result += " activation sigmoid_activationfunction;\nsigmoid_activationfunction.function = sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
         for (StmtNode stmt : Node.Stmts) {
             result += Compile(stmt);
             result += ";";
@@ -318,7 +318,7 @@ public class ToCCompiler {
         } else {
             result += "E_" + Node.Name;
         }
-        result += ";";
+        // result += ";";
         return result;
     }
 
@@ -352,7 +352,7 @@ public class ToCCompiler {
         }
         result += ");";
         if (ret_types.size() == 1) {
-            result += "TEMP0;";
+            result += "TEMP0";
         }
         // TODO: generalize this with the same exact hard coded shit in TupleNode, we don't even make tuple nodes...
         if (ret_types.size() > 1) {

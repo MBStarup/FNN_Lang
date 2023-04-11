@@ -265,11 +265,11 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public StringNode visitStrlit(FNNParser.StrlitContext ctx) {
         var result = new StringNode();
         result.Type = new BaseType(TypeEnum.String);
-        var content = ctx.STR_CONTENT();
+        var content = ctx.STR();
         if (content == null)
             result.Value = "";
         else
-            result.Value = content.getText();
+            result.Value = content.getText().substring(1, content.getText().length() - 1);
         return result;
     }
 
