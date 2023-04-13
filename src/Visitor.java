@@ -192,9 +192,11 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     }
 
     @Override
-    public AstNode visitFunction_declaration(FNNParser.Function_declarationContext ctx) {
-        Utils.ERREXIT("FUNCTIONS NOT IMPLEMENTED");
-        return null;
+    public FuncNode visitFunctionlit(FNNParser.FunctionlitContext ctx) {
+        var result = new FuncNode();
+
+        Utils.ERREXIT("TODO: functions ~tehe~");
+        return result;
     }
 
     @Override
@@ -418,6 +420,24 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(arrtypenode instanceof TypeNode, "Type in array is not actually a type???? huh??");
         var type = new ArrType(((TypeNode) arrtypenode).Type, 10); // TODO: something about the size??
         result.Type = Utils.TRY_UNWRAP(type);
+        return result;
+    }
+
+    @Override
+    public ArrAccessNode visitArraccess(FNNParser.ArraccessContext ctx) {
+        var result = new ArrAccessNode();
+
+        var arr = this.visit(ctx.arr);
+        Utils.ASSERT(arr instanceof ExprNode, "Array must be an expression, not: " + arr.getClass());
+        result.Array = (ExprNode) arr;
+        Utils.ASSERT(result.Array.Type instanceof ArrType, "Cannot index non-array type: " + result.Array.Type);
+        result.Type = ((ArrType) result.Array.Type).Type;
+
+        var index = this.visit(ctx.index);
+        Utils.ASSERT(index instanceof ExprNode, "Array index must be an expression, not: " + index.getClass());
+        result.Index = (ExprNode) index;
+        Utils.ASSERT(result.Index.Type.equals(new BaseType(TypeEnum.Int)), "Index must evaluate to an int, not: " + result.Index.Type);
+
         return result;
     }
 }

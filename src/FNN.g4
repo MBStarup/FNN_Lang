@@ -3,9 +3,8 @@ grammar FNN
 
 program: stmts = stmtlist EOF;
 
-stmt: assign | extern | function_declaration | train_stmt | expr;
+stmt: assign | extern | train_stmt | expr;
 
-function_declaration: '(' (ID ':' type)* ')' '->' '{' stmts = stmtlist '}';
 stmtlist: stmt*;
 assign: '(' ID* ')' ':' expr_in_assign = expr;
 extern: '@' ID ':' type;
@@ -23,6 +22,8 @@ expr
 	| ID																								# eval
 	| 'DENSE' '(' input_size = expr output_size = expr activation_function = ACTIVATION_FUNCTION ')'	# layerlit
 	| 'MODEL' '<' expr_in_model = expr* '>'																# modellit
+	| arr = expr '[' index = expr ']'																	# arraccess
+	| '(' (ID ':' type)* ')' '->' '{' stmts = stmtlist 'return' return = expr '}'						# function
 	;
 exprlist: expr*;
 

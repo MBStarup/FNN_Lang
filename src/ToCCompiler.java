@@ -62,6 +62,8 @@ public class ToCCompiler {
             return Compile((CallNode) Node);
         else if (Node instanceof TupleNode)
             return Compile((TupleNode) Node);
+        else if (Node instanceof ArrAccessNode)
+            return Compile((ArrAccessNode) Node);
         else {
             System.err.println("Unexpected ExprNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
             System.exit(-1);
@@ -416,6 +418,16 @@ public class ToCCompiler {
         result += "};";
 
         result += "})";
+        return result;
+    }
+
+    public String Compile(ArrAccessNode Node) {
+        String result = "(";
+        result += this.Compile(Node.Array);
+        result += ")";
+        result += "[(";
+        result += this.Compile(Node.Index);
+        result += ")]";
         return result;
     }
 
