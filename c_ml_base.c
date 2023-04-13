@@ -431,18 +431,17 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
 
     printf("Opening file: %s\n", filepath);
     FILE *fptr = fopen(filepath, "r");
-
     int file_buffer_size = (largest_elem_size + 1) * (input_size + 1); // make the buffer just big enough to hold a single line of well formatted data: input size (plus one for the label) times the size of the largest elem, plus 1 for comma, like "xxx,"
     char *file_buffer = ass_malloc(sizeof(char) * file_buffer_size);
 
     // the first line (the one that explains the layout).
     fgets(file_buffer, file_buffer_size, fptr);
-
     printf("\n");
     for (int i = 0; i < data_amount; i++)
     {
-        (*expected_outputs)[i] = ((int *)ass_malloc(sizeof(size_t) + sizeof(double) * output_size))[1]; // TODO: free
-        (*input_data)[i] = ((int *)ass_malloc(sizeof(size_t) + sizeof(double) * input_size))[1];        // TODO: free
+        size_t size = sizeof(size_t) + sizeof(double) * output_size;
+        (*expected_outputs)[i] = &(((size_t *)ass_malloc(sizeof(size_t) + sizeof(double) * output_size))[1]); // TODO: free
+        (*input_data)[i] = &(((size_t *)ass_malloc(sizeof(size_t) + sizeof(double) * input_size))[1]);        // TODO: free
         ((size_t *)((*expected_outputs)[i]))[-1] = output_size;
         ((size_t *)((*input_data)[i]))[-1] = input_size;
 
