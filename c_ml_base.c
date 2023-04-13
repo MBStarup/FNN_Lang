@@ -318,7 +318,7 @@ void _train_model(model model, int epochs, int batch_size, double **input_data, 
     layer *layers = model.layers;
 
     double *actual_results = ass_malloc(sizeof(double *) * (layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
-    double **results = &(actual_results[1]);                                    // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
+    double **results = (double **)(&(actual_results[1]));                       // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
     // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
 
     for (int layer = 0; layer < layer_amount; layer++)
@@ -440,8 +440,8 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
     for (int i = 0; i < data_amount; i++)
     {
         size_t size = sizeof(size_t) + sizeof(double) * output_size;
-        (*expected_outputs)[i] = &(((size_t *)ass_malloc(sizeof(size_t) + sizeof(double) * output_size))[1]); // TODO: free
-        (*input_data)[i] = &(((size_t *)ass_malloc(sizeof(size_t) + sizeof(double) * input_size))[1]);        // TODO: free
+        (*expected_outputs)[i] = (double *)(&(((size_t *)ass_malloc(sizeof(size_t) + sizeof(double) * output_size))[1])); // TODO: free
+        (*input_data)[i] = (double *)(&(((size_t *)ass_malloc(sizeof(size_t) + sizeof(double) * input_size))[1]));        // TODO: free
         ((size_t *)((*expected_outputs)[i]))[-1] = output_size;
         ((size_t *)((*input_data)[i]))[-1] = input_size;
 
@@ -494,7 +494,7 @@ void E_getarr(int **r, int a)
 {
     size_t *arr = ass_malloc(sizeof(size_t) + a);
     arr[0] = a;
-    (*r) = &(arr[1]);
+    (*r) = (int *)(&(arr[1]));
     for (size_t i = 0; i < a; i++)
     {
         (*r)[i] = 69 + i;
