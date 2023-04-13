@@ -320,7 +320,6 @@ public class ToCCompiler {
         } else {
             result += "E_" + Node.Name;
         }
-        // result += ";";
         return result;
     }
 
@@ -380,8 +379,8 @@ public class ToCCompiler {
             result += "void (*"; // all funcitons return void
             result += name;
             result += ")(";
-            result += TypeToString(((FuncType) type).Ret);
-            result += "*,"; // TODO: THIS IS WRONG
+            result += TypeToString(((FuncType) type).Ret).replaceAll("[,]", "*,"); // Make return values passed pointers
+            result += "*,";
             result += TypeToString(((FuncType) type).Arg);
             result += ")";
         } else if (type instanceof ArrType) {
