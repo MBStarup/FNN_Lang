@@ -32,6 +32,16 @@ antlrfiles/
 *.log
 *.exe
 
+# project specific names
+out.c
+*/out.c
+
+# gcc output 
+*.exe
+*/*.exe
+a
+*/a
+
 # Visual Studio 2015 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
