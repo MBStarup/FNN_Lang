@@ -490,3 +490,14 @@ void E_exit(int *r, int a)
     *r = a;
     exit(a);
 }
+
+void E_getarr(int **r, int a)
+{
+    size_t *arr = ass_malloc(sizeof(size_t) + a);
+    arr[0] = a;
+    (*r) = &(arr[1]);
+    for (size_t i = 0; i < a; i++)
+    {
+        (*r)[i] = 69 + i;
+    }
+}
