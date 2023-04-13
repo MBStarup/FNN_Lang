@@ -6,21 +6,10 @@
 @print_flt: (FLT) -> (INT)
 @exit: (INT) -> (INT)
 
-print("The.square.of.")
-print_int(number)
-print(".is.")
-print_int(square(number))
-print("\n")
-exit(0)
-
-
-
-
-
-(a): square(69420)
-(train_input train_expected): load_csv("train_mnist.csv" 10 784 20000 5)
-(test_input test_expected): load_csv("test_mnist.csv" 10 784 500 5)
+(train_input train_expected): load_csv("../../c/c_ml/mnist_train.csv" 10 784 2000 50)
+(test_input test_expected): load_csv("../../c/c_ml/mnist_test.csv" 10 784 500 50)
 (l_one): DENSE(784 64 sigmoid)
 (l_two): DENSE(32 10 sigmoid)
 (m): MODEL<l_one DENSE(64 32 sigmoid) l_two>
 TRAIN<m 100 4 train_input train_expected>
+print("done")

@@ -23,7 +23,7 @@ expr
 	| 'DENSE' '(' input_size = expr output_size = expr activation_function = ACTIVATION_FUNCTION ')'	# layerlit
 	| 'MODEL' '<' expr_in_model = expr* '>'																# modellit
 	| arr = expr '[' index = expr ']'																	# arraccess
-	| '(' (ID ':' type)* ')' '->' '{' stmts = stmtlist 'return' return = expr '}'						# function
+	| '(' (ID ':' type)* ')' '->' '{' stmts = stmtlist 'return' return = expr '}'						# functionlit
 	;
 exprlist: expr*;
 
