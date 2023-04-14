@@ -1,11 +1,8 @@
-import java.lang.ProcessBuilder.Redirect.Type;
-import java.nio.channels.AsynchronousServerSocketChannel;
 import java.util.*;
+import java.util.stream.Collectors;
 
-import org.antlr.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.stringtemplate.v4.compiler.STParser.exprNoComma_return;
-import org.stringtemplate.v4.compiler.STParser.ifstat_return;
 
 public class Visitor extends FNNBaseVisitor<AstNode> {
 
@@ -82,9 +79,10 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         // TODO: Consider other types
         // result.Types.add(result.Right.Types.get(0) == FNNType.Int &&
         // result.Left.Types.get(0) == FNNType.Int ? FNNType.Int : FNNType.Float);
-        Utils.ASSERT(result.Left.Type == result.Right.Type, "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type);
+        Utils.ASSERT(result.Left.Type.equals(result.Right.Type), "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type);
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
+        result.Type = result.Left.Type;
 
         return result;
     }
@@ -126,7 +124,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             Queue<FNNType> right = new LinkedList<>(tuple.Types);
             Queue<FNNType> left = new LinkedList<>();
             if (ctx.ID().size() != tuple.Types.size()) {
-                boolean did_we_unpack_tuples = false;
+                boolean did_we_unpack_tuples = false; // TODO: shouldn't we use this?
                 while (left.size() + right.size() != ctx.ID().size()) {
                     var current = right.remove();
                     if (!(current instanceof TupleType)) {
@@ -195,7 +193,61 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     public FuncNode visitFunctionlit(FNNParser.FunctionlitContext ctx) {
         var result = new FuncNode();
 
-        Utils.ERREXIT("TODO: functions ~tehe~");
+        var param_types = this.visit(ctx.params);
+        Utils.ASSERT(param_types instanceof ParamDeclListNode, "I give up");
+
+        Scopes.push(new HashMap<String, FNNType>()); // New scope for functions
+        var params = new TupleType();
+        var rets = new TupleType();
+
+        for (var param : ((ParamDeclListNode) param_types).Params) {
+            params.Types.add(param.Type);
+            result.ParamNames.add(param.Name);
+            Scopes.peek().put(param.Name, param.Type);
+        }
+
+        var ret_expr = this.visit(ctx.return_);
+        Utils.ASSERT(ret_expr instanceof ExprNode, "Funcitons must return expressions");
+        var type = new FuncType();
+        rets.Types.add(((ExprNode) ret_expr).Type); // cringe and cringe
+        type.Ret = rets;
+        type.Arg = params;
+        result.Type = type;
+
+        var stmts = this.visit(ctx.stmts);
+        Utils.ASSERT(stmts instanceof StmtListNode, "like bruh I literally don't even know how this happened, but like I'm not confident enough in the rest of the program being correct that I think we don't need the check");
+        result.Stmts = ((StmtListNode) stmts).Stmts;
+
+        result.Result = (ExprNode) ret_expr;
+
+        Scopes.pop(); // Remove function scope
+
+        return result;
+    }
+
+    @Override
+    public ParamDeclListNode visitParamdecllist(FNNParser.ParamdecllistContext ctx) {
+        var result = new ParamDeclListNode();
+
+        for (var antlr_paramdecl_node : ctx.children) {
+            var ast_paramdecl_node = this.visit(antlr_paramdecl_node);
+            Utils.ASSERT(ast_paramdecl_node instanceof ParamDeclNode, "Look man, somethign ain't where it's supposed to be, or something's where it ain't supposed to be, fix it");
+            result.Params.add((ParamDeclNode) ast_paramdecl_node);
+        }
+
+        return result;
+    }
+
+    @Override
+    public ParamDeclNode visitParamdecl(FNNParser.ParamdeclContext ctx) {
+        var result = new ParamDeclNode();
+
+        result.Name = ctx.ID().getText();
+
+        var param_type = this.visit(ctx.param_type);
+        Utils.ASSERT(param_type instanceof TypeNode, "lmeow >:3c");
+        result.Type = ((TypeNode) param_type).Type;
+
         return result;
     }
 
@@ -418,7 +470,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var result = new TypeNode();
         var arrtypenode = this.visit(ctx.arrtype);
         Utils.ASSERT(arrtypenode instanceof TypeNode, "Type in array is not actually a type???? huh??");
-        var type = new ArrType(((TypeNode) arrtypenode).Type, 10); // TODO: something about the size??
+        var type = new ArrType(((TypeNode) arrtypenode).Type, 69); // TODO: something about the size??
         result.Type = Utils.TRY_UNWRAP(type);
         return result;
     }

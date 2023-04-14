@@ -1,5 +1,4 @@
-import java.util.List;
-import java.util.Vector;
+import java.util.*;
 
 public class ToCCompiler {
     // public String Compile(AstNode Node) {
@@ -8,6 +7,13 @@ public class ToCCompiler {
     // System.exit(-1);
     // return null;
     // }
+
+    public Stack<Map<String, Boolean>> Scopes;
+
+    public ToCCompiler() {
+        Scopes = new Stack<>();
+        Scopes.push(new HashMap<>());
+    }
 
     public String Compile(ProgramNode Node) {
         String result = "#include <stdio.h>\n#include \"c_ml_base.c\"\n";
@@ -26,8 +32,6 @@ public class ToCCompiler {
     public String Compile(StmtNode Node) {
         if (Node instanceof ExprNode)
             return Compile((ExprNode) Node);
-        else if (Node instanceof FunctionDeclarationNode)
-            return Compile((FunctionDeclarationNode) Node);
         else if (Node instanceof AssignNode)
             return Compile((AssignNode) Node);
         else if (Node instanceof TrainNode)
@@ -64,6 +68,8 @@ public class ToCCompiler {
             return Compile((TupleNode) Node);
         else if (Node instanceof ArrAccessNode)
             return Compile((ArrAccessNode) Node);
+        else if (Node instanceof FuncNode)
+            return Compile((FuncNode) Node);
         else {
             System.err.println("Unexpected ExprNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
             System.exit(-1);
@@ -113,16 +119,6 @@ public class ToCCompiler {
         }
         result += Compile(Node.Operand);
         result += ")";
-        return result;
-    }
-
-    public String Compile(FunctionDeclarationNode Node) {
-        String result = Node.ReturnType + Node.Name + "(";
-        for (var param : Node.Params) {
-            result += "";
-
-        }
-
         return result;
     }
 
@@ -266,17 +262,36 @@ public class ToCCompiler {
         return result;
     }
 
+    private Boolean isDeclared(String name) {
+        for (var scope : Scopes) {
+            var type = scope.get(name);
+            if (type != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public String Compile(AssignNode Node) {
         String result = "";
+
         if (Node.Names.size() == 1) {
-            result += Declare(Node.Names.get(0), Node.Types.get(0));
+            if (!(isDeclared(Node.Names.get(0)))) { // not declared
+                Scopes.peek().put(Node.Names.get(0), true);
+                result += Declare(Node.Names.get(0), Node.Types.get(0));
+            } else {
+                result += Node.Names.get(0);
+            }
             result += " = ";
             result += this.Compile(Node.Value);
             result += ";\n";
         } else {
             for (int i = 0; i < Node.Names.size(); i++) {
-                result += Declare(Node.Names.get(i), Node.Types.get(i));
-                result += ";";
+                if (!(isDeclared(Node.Names.get(i)))) { // not declared
+                    Scopes.peek().put(Node.Names.get(i), true);
+                    result += Declare(Node.Names.get(i), Node.Types.get(i));
+                    result += ";";
+                }
             }
             result += "{";
             result += "void **TEMP = ";
@@ -355,7 +370,7 @@ public class ToCCompiler {
         if (ret_types.size() == 1) {
             result += "TEMP0";
         }
-        // TODO: generalize this with the same exact hard coded shit in TupleNode, we don't even make tuple nodes...
+        // TODO: generalize this with the same exact hard coded shit in TupleNode...
         if (ret_types.size() > 1) {
             result += "(void*[]){&TEMP0";
             for (int i = 1; i < ret_types.size(); i++) {
@@ -368,7 +383,7 @@ public class ToCCompiler {
         return result;
     }
 
-    public String Declare(String name, FNNType type) {
+    private String Declare(String name, FNNType type) {
         System.out.println("Declare: " + name + " : " + type);
         String result = "";
         if (type instanceof BaseType) {
@@ -379,7 +394,7 @@ public class ToCCompiler {
             result += "void (*"; // all funcitons return void
             result += name;
             result += ")(";
-            result += TypeToString(((FuncType) type).Ret).replaceAll("[,]", "*,"); // Make return values passed pointers
+            result += TypeToString(((FuncType) type).Ret).replaceAll("[,]", "*,"); // Make return values passed pointers, TODO: THIS IS VERY BAD, since when returing function pointers, the type has actuall commas, that shoulnd't be replaced with *,
             result += "*,";
             result += TypeToString(((FuncType) type).Arg);
             result += ")";
@@ -428,6 +443,46 @@ public class ToCCompiler {
         result += this.Compile(Node.Index);
         result += ")]";
         return result;
+    }
+
+    public String Compile(FuncNode Node) {
+        Utils.ASSERT(Node.Type instanceof FuncType, "Trying to declare function with non function type, compiler shit the bed");
+        var type = (FuncType) Node.Type;
+        var params = Utils.FLATTEN(type.Arg);
+        var rets = Utils.FLATTEN(type.Ret);
+        String result = "({";
+        result += "void ";
+        result += "FUNC";
+        result += "(";
+        if (rets.Types.size() > 0) {
+            result += Declare("*RET" + 0, rets.Types.get(0));
+            for (int i = 1; i < rets.Types.size(); i++) {
+                result += ",";
+                result += Declare("*RET" + i, rets.Types.get(i));
+            }
+        }
+        Scopes.push(new HashMap<String, Boolean>()); // New scope for functions
+        for (int i = 0; i < params.Types.size(); i++) {
+            result += ",";
+            result += Declare(Node.ParamNames.get(i), params.Types.get(i));
+            Scopes.peek().put(Node.ParamNames.get(i), true);
+        }
+        result += ")";
+        result += "{";
+        for (var stmt : Node.Stmts) {
+            result += this.Compile(stmt);
+            result += ";";
+        }
+        result += "(*RET0)=";
+        result += this.Compile(Node.Result);
+        result += ";";
+        Scopes.pop();
+        result += "};";
+        result += "&FUNC;";
+        result += "})";
+
+        return result;
+
     }
 
 }

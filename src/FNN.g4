@@ -23,9 +23,11 @@ expr
 	| 'DENSE' '(' input_size = expr output_size = expr activation_function = ACTIVATION_FUNCTION ')'	# layerlit
 	| 'MODEL' '<' expr_in_model = expr* '>'																# modellit
 	| arr = expr '[' index = expr ']'																	# arraccess
-	| '(' (ID ':' type)* ')' '->' '{' stmts = stmtlist 'return' return = expr '}'						# functionlit
+	| '(' params = paramdecllist ')' '->' '{' stmts = stmtlist 'return' return = expr '}'				# functionlit
 	;
 exprlist: expr*;
+paramdecl: ID ':' param_type = type;
+paramdecllist: paramdecl*;
 
 type: BASETYPE # basetypelit | '(' args = typelist ')' '->' '(' rets = typelist ')' # functypelit | '[' arrtype = type ']' # arrtypelit | '(' tupletypes = typelist ')' # tupletypelit;
 typelist: type*;
