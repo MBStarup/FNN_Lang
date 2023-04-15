@@ -1,8 +1,8 @@
 @print_int: (INT) -> (INT)
 
-(add): ( a:INT b:INT ) -> {
-    (b): a + b
-    return b
+(get_func): ( a:INT ) -> {
+    1 + 2
+    return ( b:INT ) -> {1 + 2 return b*2}
 }
 
-print_int(add(1 2))
+print_int(get_func(0)(2))

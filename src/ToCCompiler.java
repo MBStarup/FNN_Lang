@@ -1,3 +1,4 @@
+import java.lang.ProcessBuilder.Redirect.Type;
 import java.util.*;
 
 public class ToCCompiler {
@@ -9,6 +10,7 @@ public class ToCCompiler {
     // }
 
     public Stack<Map<String, Boolean>> Scopes;
+    private int funcNum;
 
     public ToCCompiler() {
         Scopes = new Stack<>();
@@ -125,15 +127,15 @@ public class ToCCompiler {
     public static String TypeEnumToString(TypeEnum Enum) {
         switch (Enum) {
         case Int:
-            return "int";
+            return "int PLACEHOLDER";
         case Float:
-            return "double";
+            return "double PLACEHOLDER";
         case Layer:
-            return "layer";
+            return "layer PLACEHOLDER";
         case String:
-            return "char *";
+            return "char *PLACEHOLDER";
         case Model:
-            return "model";
+            return "model PLACEHOLDER";
         default:
             System.err.println("Unexpected type (" + Enum + ") cannot be converted to c-type");
             System.exit(-1);
@@ -144,19 +146,18 @@ public class ToCCompiler {
     }
 
     public static String TypeToString(ArrType Type) {
-        String result = "";
-        result += TypeToString(Type.Type);
-        result += " *";
-        return result;
+        return TypeToString(Type.Type).replaceAll("PLACEHOLDER", "*PLACEHOLDER");
     }
 
     public static String TypeToString(FuncType Type) {
         String result = "";
-        result += "void (*)("; // all funcitons return void
-        var argsString = TypeToString(Type.Arg);
-        argsString.replace(",", "*,");
-        result += argsString;
-        result += TypeToString(Type.Ret);
+        result += "void (*PLACEHOLDER)("; // all funcitons return void
+        var rets = TypeToString(Type.Ret).replaceAll("PLACEHOLDER", "*"); // Return types are actually pointers to that type
+        if (rets.length() > 0) {
+            rets += ",";
+        }
+        result += rets;
+        result += TypeToString(Type.Arg).replaceAll("PLACEHOLDER", ""); // Argument types have no names
         result += ")";
         return result;
     }
@@ -167,7 +168,7 @@ public class ToCCompiler {
         result += TypeToString(Type.Types.get(0));
         for (int i = 1; i < Type.Types.size(); i++) {
             result += ",";
-            result += TypeToString(Type.Types.get(i));
+            result += TypeToString(Type.Types.get(i)); // TODO: something about PLACEHOLDER?
         }
         return result;
     }
@@ -300,13 +301,14 @@ public class ToCCompiler {
             for (int i = 0; i < Node.Names.size(); i++) {
                 result += Node.Names.get(i);
                 result += " = (*((";
-                result += TypeToString(Node.Types.get(i));
+                result += TypeToString(Node.Types.get(i)).replaceAll("PLACEHOLDER", ""); // This has become so compilicated that I no longer knows what's going on, but I can see by trial and error this is where PLACEHOLDER should be removed lmao
                 result += "*)(TEMP[";
                 result += i;
                 result += "])));";
             }
             result += "}";
         }
+
         System.out.println("Assign: " + result);
         return result;
     }
@@ -386,21 +388,12 @@ public class ToCCompiler {
     private String Declare(String name, FNNType type) {
         System.out.println("Declare: " + name + " : " + type);
         String result = "";
-        if (type instanceof BaseType) {
-            result += TypeToString((BaseType) type);
-            result += " ";
-            result += name;
+        if (type instanceof BaseType) { // TODO: this is the same, look at it again
+            result += TypeToString((BaseType) type).replaceAll("PLACEHOLDER", name);
         } else if (type instanceof FuncType) {
-            result += "void (*"; // all funcitons return void
-            result += name;
-            result += ")(";
-            result += TypeToString(((FuncType) type).Ret).replaceAll("[,]", "*,"); // Make return values passed pointers, TODO: THIS IS VERY BAD, since when returing function pointers, the type has actuall commas, that shoulnd't be replaced with *,
-            result += "*,";
-            result += TypeToString(((FuncType) type).Arg);
-            result += ")";
+            result += TypeToString((FuncType) type).replaceAll("PLACEHOLDER", name);
         } else if (type instanceof ArrType) {
-            result += TypeToString((ArrType) type);
-            result += name;
+            result += TypeToString((ArrType) type).replaceAll("PLACEHOLDER", name);
         } else if (type instanceof TupleType) {
             result += "void **";
             result += name;
@@ -446,13 +439,14 @@ public class ToCCompiler {
     }
 
     public String Compile(FuncNode Node) {
+        int func_num = this.funcNum++;
         Utils.ASSERT(Node.Type instanceof FuncType, "Trying to declare function with non function type, compiler shit the bed");
         var type = (FuncType) Node.Type;
         var params = Utils.FLATTEN(type.Arg);
         var rets = Utils.FLATTEN(type.Ret);
         String result = "({";
         result += "void ";
-        result += "FUNC";
+        result += "FUNC" + func_num;
         result += "(";
         if (rets.Types.size() > 0) {
             result += Declare("*RET" + 0, rets.Types.get(0));
@@ -478,8 +472,8 @@ public class ToCCompiler {
         result += ";";
         Scopes.pop();
         result += "};";
-        result += "&FUNC;";
-        result += "})";
+        result += "&FUNC" + func_num;
+        result += ";})";
 
         return result;
 
