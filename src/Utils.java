@@ -2,13 +2,21 @@ import java.util.*;
 
 public class Utils {
     static void ERREXIT(String msg) {
+        int i = 1;
+        var caller = Thread.currentThread().getStackTrace()[i];
+        while ((caller = Thread.currentThread().getStackTrace()[i]).getFileName().startsWith("Utils")) {++i;} // Skips the errors from this file, and prints where the ERREXIT was called
+        System.err.print("ERR (");
+        System.err.print(caller.getFileName());
+        System.err.print(":");
+        System.err.print(caller.getLineNumber());
+        System.err.print("): ");
         System.err.println(msg);
         System.exit(-1);
     }
 
     static void ASSERT(Boolean predicate, String fail_msg) {
         if (!(predicate))
-            ERREXIT("ERR: " + fail_msg);
+            ERREXIT(fail_msg);
     }
 
     static FNNType TRY_UNWRAP(FNNType type) {

@@ -8,10 +8,13 @@ public class TupleType extends FNNType {
 
     @Override
     public String toString() {
-        String result = "( ";
-        for (FNNType type : Types) {
-            result += type;
-            result += " ";
+        String result = "(";
+        if (Types.size() > 0) {
+            result += Types.get(0);
+            for (int i = 1; i < Types.size(); i++) {
+                result += " ";
+                result += Types.get(i);
+            }
         }
         result += ")";
         return result;
@@ -25,11 +28,12 @@ public class TupleType extends FNNType {
         if (!(other instanceof FNNType))
             return false;
 
-        if (!(other instanceof TupleType))
+        if (!(other instanceof TupleType)) {
             if (Types.size() != 1)
                 return false;
             else
                 return Types.get(0).equals(other);
+        }
 
         // Else, both are tuples
         // flatten both tuples

@@ -1,29 +1,27 @@
 #include "c_ml_base.c"
+#define TRAINING_DATA_AMOUNT 1
 
 int main(int argc, char const *argv[])
 {
     srand(420);
 
-    activation sigmoid_activationfunction;
-    sigmoid_activationfunction.function = sigmoid;
-    sigmoid_activationfunction.derivative = derivative_of_sigmoid;
-
-    layer layers[] = {layer_new(INPUT_SIZE, 128, activation), layer_new(128, OUTPUT_SIZE, activation)};
+    layer_T layers[] = {layer_new(INPUT_SIZE, 128, &E_sigmoid, &E_derivative_of_sigmoid), layer_new(128, OUTPUT_SIZE, &E_sigmoid, &E_derivative_of_sigmoid)};
     const size_t layer_amount = sizeof(layers) / sizeof(layers[0]);
     DEBUG("%d\n", layer_amount);
 
-    double *actual_results = ass_malloc(sizeof(double *) * (layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
-    double **results = &(actual_results[1]);                                    // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
+    double **actual_results = ass_malloc(sizeof(double *) * (layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
+    double **results = &(actual_results[1]);                                     // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
     // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
     for (int layer = 0; layer < layer_amount; layer++)
     {
         results[layer] = ass_malloc(sizeof(double) * layers[layer].out);
     }
 
-    double *training_data_input[TRAINING_DATA_AMOUNT];
-    double *training_expected_output[TRAINING_DATA_AMOUNT];
-    load_csv(training_expected_output, OUTPUT_SIZE, training_data_input, INPUT_SIZE, TRAINING_DATA_AMOUNT, "../c_ml/mnist_train.csv", 5);
-    train_model(model_new(layer_amount, layers), EPOCHS, BATCH_SIZE, training_data_input, training_expected_output, TRAINING_DATA_AMOUNT);
+    double **training_data_input = ass_malloc_fnn_arr(sizeof(double *), TRAINING_DATA_AMOUNT);
+    double **training_expected_output = ass_malloc_fnn_arr(sizeof(double *), TRAINING_DATA_AMOUNT);
+
+    E_load_csv(&training_expected_output, &training_data_input, "../../c/c_ml/mnist_train.csv", 10, 784, TRAINING_DATA_AMOUNT, 50);
+    train_model(model_new(layer_amount, layers), EPOCHS, BATCH_SIZE, training_data_input, training_expected_output);
 
     // print examples to look at
     for (int printed_example = PRINTED_EXAMPLE; printed_example < PRINTED_EXAMPLE_AMOUNT; printed_example++)
@@ -39,7 +37,7 @@ int main(int argc, char const *argv[])
                 layer_apply(layers[layer], results[layer - 1], results[layer]);
                 for (int output = 0; output < layers[layer].out; output++)
                 {
-                    results[layer][output] = layers[layer].activation.function(results[layer][output]);
+                    layers[layer].activation(&results[layer][output], results[layer][output]);
                 }
             }
         }
@@ -64,7 +62,8 @@ int main(int argc, char const *argv[])
         layer_del(layers[layer]);
     }
 
-    ass_free(data);
+    ass_free(training_data_input);
+    ass_free(training_expected_output);
     DEBUG("%d\n", alloc_counter);
     return 0;
 }

@@ -46,13 +46,7 @@ typedef struct
     int label;
     double img[INPUT_SIZE];
     double expected[OUTPUT_SIZE];
-} image;
-
-typedef struct
-{
-    double (*function)(double);
-    double (*derivative)(double);
-} activation;
+} image_T;
 
 typedef struct
 {
@@ -60,14 +54,15 @@ typedef struct
     size_t out;
     double *weights;
     double *biases;
-    activation activation;
-} layer;
+    void (*activation)(double *, double);            // Fnn calling convention
+    void (*activation_derivative)(double *, double); // Fnn calling convention
+} layer_T;
 
 typedef struct
 {
     size_t layer_amount;
-    layer *layers;
-} model;
+    layer_T *layers;
+} model_T;
 
 int alloc_counter = 0;
 
@@ -86,6 +81,7 @@ void *ass_calloc(size_t size)
 void *ass_malloc(size_t size)
 {
     ++alloc_counter;
+    printf("malloc: %llu\n", size);
     void *ptr = malloc(size);
     assert(ptr != NULL);
     return ptr;
@@ -97,6 +93,13 @@ void ass_free(void *ptr)
     free(ptr);
 }
 
+void *ass_malloc_fnn_arr(size_t elem_size, size_t count)
+{
+    size_t *arr = ass_malloc(sizeof(size_t) + elem_size * count);
+    arr[0] = count;
+    return (&arr[1]);
+}
+
 void randomize_double_arr(double *arr, int size, double min, double max)
 {
     for (int i = 0; i < size; i++)
@@ -105,18 +108,18 @@ void randomize_double_arr(double *arr, int size, double min, double max)
     }
 }
 
-model model_new(int amount, ...)
+model_T model_new(int amount, ...)
 {
-    model result;
+    model_T result;
     result.layer_amount = amount;
-    result.layers = ass_malloc(sizeof(layer) * amount);
+    result.layers = ass_malloc(sizeof(layer_T) * amount);
     va_list valist;
     va_start(valist, amount);
 
     for (size_t i = 0; i < amount; i++)
     {
         // result.layers[i] = ((layer*)((&amount)+1))[i];
-        result.layers[i] = va_arg(valist, layer);
+        result.layers[i] = va_arg(valist, layer_T);
     }
 
     va_end(valist);
@@ -178,9 +181,9 @@ void shuffle_arr(size_t arr_length, size_t elem_size, void *arr)
     ass_free(temp);
 }
 
-layer layer_new(int in, int out, activation activation)
+layer_T layer_new(int in, int out, void (*a)(double *, double), void (*a_derivative)(double *, double))
 {
-    layer res;
+    layer_T res;
 
     res.in = in;
     res.out = out;
@@ -191,12 +194,13 @@ layer layer_new(int in, int out, activation activation)
     res.biases = ass_malloc(sizeof(double) * out);
     randomize_double_arr(res.biases, out, 0, 1);
 
-    res.activation = activation;
+    res.activation = a;
+    res.activation_derivative = a_derivative;
 
     return res;
 }
 
-void layer_del(layer l)
+void layer_del(layer_T l)
 {
     ass_free(l.biases);
     ass_free(l.weights);
@@ -209,7 +213,7 @@ void layer_del(layer l)
 // if smaller will potentially segfault
 // Assumes the size of outputs matches the size of l.out
 // writes results to outputs
-void layer_apply(layer l, double *inputs, double *outputs)
+void layer_apply(layer_T l, double *inputs, double *outputs)
 {
     for (int i_out = 0; i_out < l.out; i_out++)
     {
@@ -222,9 +226,9 @@ void layer_apply(layer l, double *inputs, double *outputs)
     }
 }
 
-image parse_line(char *line)
+image_T parse_line(char *line)
 {
-    image result;
+    image_T result;
     char *token = strtok(line, ",");
     result.label = atoi(token);
     for (int i = 0; i < OUTPUT_SIZE; i++)
@@ -311,11 +315,16 @@ double derivative_of_sigmoid(double x)
     return sigmoid(x) * (1 - sigmoid(x));
 }
 
-void _train_model(model model, int epochs, int batch_size, double **input_data, double **expected_output, int data_amount)
+void E_relu(double *ret, double x) { *ret = relu(x); }                                   // FNN calling convention version
+void E_derivative_of_relu(double *ret, double x) { *ret = derivative_of_relu(x); }       // FNN calling convention version
+void E_sigmoid(double *ret, double x) { *ret = sigmoid(x); }                             // FNN calling convention version
+void E_derivative_of_sigmoid(double *ret, double x) { *ret = derivative_of_sigmoid(x); } // FNN calling convention version
+
+void _train_model(model_T model, int epochs, int batch_size, double **input_data, double **expected_output, int data_amount)
 {
 
     int layer_amount = model.layer_amount;
-    layer *layers = model.layers;
+    layer_T *layers = model.layers;
 
     double *actual_results = ass_malloc(sizeof(double *) * (layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
     double **results = (double **)(&(actual_results[1]));                       // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
@@ -354,7 +363,7 @@ void _train_model(model model, int epochs, int batch_size, double **input_data, 
                     for (int output = 0; output < layers[layer].out; output++)      // apply the activation
                     {
 
-                        results[layer][output] = layers[layer].activation.function(results[layer][output]);
+                        layers[layer].activation(&results[layer][output], results[layer][output]);
                     }
                 }
 
@@ -385,8 +394,8 @@ void _train_model(model model, int epochs, int batch_size, double **input_data, 
 
                     for (int out = 0; out < layers[layer].out; out++)
                     {
-
-                        double dout_dz = layers[layer].activation.derivative(results[layer][out]); //! <- only real diff I can see is that in the example that works, this uses the "Out" value after activation instead of the "z" value before activation, so why does 3B1B say it's the derivative of the activation of z???
+                        double dout_dz;
+                        layers[layer].activation_derivative(&dout_dz, results[layer][out]); //! <- only real diff I can see is that in the example that works, this uses the "Out" value after activation instead of the "z" value before activation, so why does 3B1B say it's the derivative of the activation of z???
                         for (int input = 0; input < layers[layer].in; input++)
                         {
 
@@ -414,10 +423,17 @@ void _train_model(model model, int epochs, int batch_size, double **input_data, 
     }
 }
 
-void train_model(model model, int epochs, int batch_size, double **input_data, double **expected_output)
+void train_model(model_T model, int epochs, int batch_size, double **input_data, double **expected_output)
 {
     int size = ((size_t *)expected_output)[-1];
+
     _train_model(model, epochs, batch_size, input_data, expected_output, size);
+}
+
+void E_train(int *r, model_T model, int epochs, int batch_size, double **input_data, double **expected_output)
+{
+    train_model(model, epochs, batch_size, input_data, expected_output);
+    *r = 0;
 }
 
 // Expects the datqa to be formatted as lines in a csv, where the first elem is the correct index in the output categories, and the rest is the input data.
@@ -499,4 +515,15 @@ void E_getarr(int **r, int a)
     {
         (*r)[i] = 69 + i;
     }
+}
+
+void E_new_dense(layer_T *result, int in, int out, void (*a)(double *, double), void (*a_derivative)(double *, double))
+{
+    *result = layer_new(in, out, a, a_derivative);
+}
+
+void E_print_lyr(int *r, layer_T l)
+{
+    printf("Layer:\n\tIn: %llu\n\tOut: %llu\n", l.in, l.out);
+    *r = 0;
 }

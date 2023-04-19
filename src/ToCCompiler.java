@@ -1,6 +1,8 @@
 import java.lang.ProcessBuilder.Redirect.Type;
 import java.util.*;
 
+import javax.swing.text.Utilities;
+
 public class ToCCompiler {
     // public String Compile(AstNode Node) {
     // System.err.println("Unexpected nodes: " + Node.getClass() + " while trying to
@@ -21,8 +23,13 @@ public class ToCCompiler {
         String result = "#include <stdio.h>\n#include \"c_ml_base.c\"\n";
         // result += "#define TRAINING_DATA_AMOUNT 12\n";
         result += "int main(int argc, char* argv[]){";
-        // result += " double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble *training_expected_output[TRAINING_DATA_AMOUNT];\nload_csv(training_expected_output, OUTPUT_SIZE, training_data_input, INPUT_SIZE, TRAINING_DATA_AMOUNT, \"../c_ml/mnist_train.csv\", 5);\n";
-        result += " activation sigmoid_activationfunction;\nsigmoid_activationfunction.function = sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
+        // result += " double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble
+        // *training_expected_output[TRAINING_DATA_AMOUNT];\nload_csv(training_expected_output,
+        // OUTPUT_SIZE, training_data_input, INPUT_SIZE, TRAINING_DATA_AMOUNT,
+        // \"../c_ml/mnist_train.csv\", 5);\n";
+        // result += " activation
+        // sigmoid_activationfunction;\nsigmoid_activationfunction.function =
+        // sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
         for (StmtNode stmt : Node.Stmts) {
             result += Compile(stmt);
             result += ";";
@@ -131,15 +138,13 @@ public class ToCCompiler {
         case Float:
             return "double PLACEHOLDER";
         case Layer:
-            return "layer PLACEHOLDER";
+            return "layer_T PLACEHOLDER";
         case String:
             return "char *PLACEHOLDER";
         case Model:
-            return "model PLACEHOLDER";
+            return "model_T PLACEHOLDER";
         default:
-            System.err.println("Unexpected type (" + Enum + ") cannot be converted to c-type");
-            System.exit(-1);
-            // TODO: Make exit function.
+            Utils.ERREXIT("Unexpected type (" + Enum + ") cannot be converted to c-type");
         }
 
         return null;
@@ -152,7 +157,8 @@ public class ToCCompiler {
     public static String TypeToString(FuncType Type) {
         String result = "";
         result += "void (*PLACEHOLDER)("; // all funcitons return void
-        var rets = TypeToString(Type.Ret).replaceAll("PLACEHOLDER", "*"); // Return types are actually pointers to that type
+        var rets = TypeToString(Type.Ret).replaceAll("PLACEHOLDER", "*"); // Return types are actually pointers to that
+                                                                          // type
         if (rets.length() > 0) {
             rets += ",";
         }
@@ -164,7 +170,9 @@ public class ToCCompiler {
 
     public static String TypeToString(TupleType Type) {
         String result = "";
-        Utils.ASSERT(Type.Types.size() > 0, "Empty tuple. TODO: consider allowing empty tuples."); // TODO: consider allowing empty tuples
+        Utils.ASSERT(Type.Types.size() > 0, "Empty tuple. TODO: consider allowing empty tuples."); // TODO: consider
+                                                                                                   // allowing empty
+                                                                                                   // tuples
         result += TypeToString(Type.Types.get(0));
         for (int i = 1; i < Type.Types.size(); i++) {
             result += ",";
@@ -301,7 +309,13 @@ public class ToCCompiler {
             for (int i = 0; i < Node.Names.size(); i++) {
                 result += Node.Names.get(i);
                 result += " = (*((";
-                result += TypeToString(Node.Types.get(i)).replaceAll("PLACEHOLDER", ""); // This has become so compilicated that I no longer knows what's going on, but I can see by trial and error this is where PLACEHOLDER should be removed lmao
+                result += TypeToString(Node.Types.get(i)).replaceAll("PLACEHOLDER", ""); // This has become so
+                                                                                         // compilicated that I no
+                                                                                         // longer knows what's going
+                                                                                         // on, but I can see by trial
+                                                                                         // and error this is where
+                                                                                         // PLACEHOLDER should be
+                                                                                         // removed lmao
                 result += "*)(TEMP[";
                 result += i;
                 result += "])));";
@@ -406,7 +420,8 @@ public class ToCCompiler {
 
     public String Compile(TupleNode Node) {
         String result = "({";
-        Utils.ASSERT(Node.Type instanceof TupleType, "Type of tuple node isn't a tuple type guh"); // TODO: maybe redundant tbh
+        Utils.ASSERT(Node.Type instanceof TupleType, "Type of tuple node isn't a tuple type guh"); // TODO: maybe
+                                                                                                   // redundant tbh
         var type = (TupleType) Node.Type;
 
         for (int i = 0; i < type.Types.size(); i++) {

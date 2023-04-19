@@ -4,9 +4,9 @@ public class FuncType extends FNNType {
 
     @Override
     public String toString() {
-        String result = "( ";
+        String result = "(";
         result += Arg.toString();
-        result += ") -> ( ";
+        result += ") -> (";
         result += Ret.toString();
         result += ")";
         return result;
