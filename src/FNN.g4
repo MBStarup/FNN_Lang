@@ -14,7 +14,7 @@ expr
 	: STR																								# strlit
 	| INT																								# intlit
 	| FLOAT																								# floatlit
-	| func = expr '(' exprs = exprlist ')'																# call
+	| func = expr '!(' exprs = exprlist ')'																# call
 	| '(' expr_in_parens = expr ')'																		# parens
 	| '(' exprs = exprlist ')'																			# tuplelit
 	| left_op = expr OPERATOR right_op = expr															# biop

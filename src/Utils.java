@@ -4,7 +4,9 @@ public class Utils {
     static void ERREXIT(String msg) {
         int i = 1;
         var caller = Thread.currentThread().getStackTrace()[i];
-        while ((caller = Thread.currentThread().getStackTrace()[i]).getFileName().startsWith("Utils")) {++i;} // Skips the errors from this file, and prints where the ERREXIT was called
+        while ((caller = Thread.currentThread().getStackTrace()[i]).getFileName().startsWith("Utils")) {
+            ++i;
+        } // Skips the errors from this file, and prints where the ERREXIT was called
         System.err.print("ERR (");
         System.err.print(caller.getFileName());
         System.err.print(":");
@@ -32,36 +34,20 @@ public class Utils {
         return TRY_UNWRAP(((TupleType) type).Types.get(0));
     }
 
+    // TODO: make non-recursive with stack if needed
     static TupleType FLATTEN(FNNType Type) {
         var result = new TupleType();
         if (Type instanceof TupleType) {
-            var tuple = (TupleType) Type;
-            Queue<FNNType> right = new LinkedList<>(tuple.Types);
-            Queue<FNNType> left = new LinkedList<>();
-            Boolean did_we_unpack_tuples = true;
-            while (did_we_unpack_tuples) {
-                did_we_unpack_tuples = false;
-                var current = right.remove();
-                if (!(current instanceof TupleType)) {
-                    left.add(current);
-                } else {
-                    did_we_unpack_tuples = true;
-                    for (var t : ((TupleType) current).Types) {
-                        left.add(t);
-                    }
+            for (var tuple_elem : ((TupleType) Type).Types) {
+                var flat = FLATTEN(tuple_elem); // recursively flatten each subsequent element of the tuple
+                for (var t : flat.Types) {
+                    result.Types.add(t);
                 }
-            }
-            while (left.size() > 0) {
-                var type = left.remove();
-                result.Types.add(type);
-            }
-            while (right.size() > 0) {
-                var type = right.remove();
-                result.Types.add(type);
             }
         } else {
             result.Types.add(Type);
         }
         return result;
     }
+
 }

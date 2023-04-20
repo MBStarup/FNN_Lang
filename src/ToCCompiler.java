@@ -3,6 +3,8 @@ import java.util.*;
 
 import javax.swing.text.Utilities;
 
+import org.antlr.v4.codegen.model.chunk.ThisRulePropertyRef_parser;
+
 public class ToCCompiler {
     // public String Compile(AstNode Node) {
     // System.err.println("Unexpected nodes: " + Node.getClass() + " while trying to
@@ -356,15 +358,12 @@ public class ToCCompiler {
 
     public String Compile(CallNode Node) {
         String result = "";
-        List<FNNType> ret_types;
-
-        if (Node.Type instanceof TupleType) {
-            ret_types = ((TupleType) Node.Type).Types;
-        } else {
-            ret_types = new Vector<FNNType>();
-            ret_types.add(Node.Type);
-        }
+        var ret_types = Utils.FLATTEN(Node.Type).Types;
         result += "({";
+        for (int i = 0; i < Node.Args.size(); i++) {
+            result += tupleParamDelcare("ARG" + i, Node.Args.get(i).Type);
+            result += ";";
+        }
         for (int i = 0; i < ret_types.size(); i++) {
             result += Declare("TEMP" + i, ret_types.get(i));
             result += ";";
@@ -381,6 +380,9 @@ public class ToCCompiler {
         for (int i = 0; i < Node.Args.size(); i++) {
             result += ",";
             result += Compile(Node.Args.get(i));
+            if (Node.Args.get(i).Type instanceof TupleType) {
+
+            }
         }
         result += ");";
         if (ret_types.size() == 1) {
@@ -400,7 +402,7 @@ public class ToCCompiler {
     }
 
     private String Declare(String name, FNNType type) {
-        System.out.println("Declare: " + name + " : " + type);
+        // System.out.println("Declare: " + name + " : " + type);
         String result = "";
         if (type instanceof BaseType) { // TODO: this is the same, look at it again
             result += TypeToString((BaseType) type).replaceAll("PLACEHOLDER", name);
@@ -453,10 +455,30 @@ public class ToCCompiler {
         return result;
     }
 
+    private String tupleParamDelcare(String name, FNNType type) {
+        if (!(type instanceof TupleType)) {
+            return Declare(name, type);
+        }
+        var t = (TupleType) type;
+        String result = "";
+        if (t.Types.size() > 0) {
+            result += tupleParamDelcare(name + "_" + 0, t.Types.get(0));
+            for (int i = 1; i < t.Types.size(); i++) {
+                result += ",";
+                result += tupleParamDelcare(name + "_" + i, t.Types.get(i));
+            }
+        }
+
+        return result;
+    }
+
     public String Compile(FuncNode Node) {
         int func_num = this.funcNum++;
         Utils.ASSERT(Node.Type instanceof FuncType, "Trying to declare function with non function type, compiler shit the bed");
         var type = (FuncType) Node.Type;
+        for (int i = 0; i < type.Arg.Types.size(); i++) {
+            System.out.println("T:" + type.Arg.Types.get(i));
+        }
         var params = Utils.FLATTEN(type.Arg);
         var rets = Utils.FLATTEN(type.Ret);
         String result = "({";
@@ -470,10 +492,11 @@ public class ToCCompiler {
                 result += Declare("*RET" + i, rets.Types.get(i));
             }
         }
+
         Scopes.push(new HashMap<String, Boolean>()); // New scope for functions
-        for (int i = 0; i < params.Types.size(); i++) {
+        for (int i = 0; i < type.Arg.Types.size(); i++) {
             result += ",";
-            result += Declare(Node.ParamNames.get(i), params.Types.get(i));
+            result += tupleParamDelcare(Node.ParamNames.get(i), type.Arg.Types.get(i));
             Scopes.peek().put(Node.ParamNames.get(i), true);
         }
         result += ")";

@@ -15,6 +15,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public ProgramNode visitProgram(FNNParser.ProgramContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         ProgramNode result = new ProgramNode();
         var stmtList = this.visit(ctx.stmts);
         Utils.ASSERT(stmtList instanceof StmtListNode, "I legit don't know how we'd ever get this error lmao");
@@ -24,6 +26,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public StmtListNode visitStmtlist(FNNParser.StmtlistContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new StmtListNode();
         for (var antlr_stmt_node : ctx.children) {
             System.out.println("going to visit: " + antlr_stmt_node.getText());
@@ -38,10 +42,12 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public ExprListNode visitExprlist(FNNParser.ExprlistContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new ExprListNode();
         for (var antlr_expr_node : ctx.children) {
             var ast_expr_node = this.visit(antlr_expr_node);
-            Utils.ASSERT(ast_expr_node instanceof ExprNode, "Somehow we have a thing that was parsed to an exprlist, but when visiting the children it doesn't result in an ExprNode");
+            Utils.ASSERT(ast_expr_node instanceof ExprNode, "Somehow we have a thing that was parsed to an exprlist, " + antlr_expr_node.getText() + ", but when visiting the children it doesn't result in an ExprNode, on line: " + ctx.start.getLine());
             result.Exprs.add((ExprNode) ast_expr_node);
         }
         return result;
@@ -49,6 +55,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public TypeListNode visitTypelist(FNNParser.TypelistContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new TypeListNode();
         if (ctx == null || ctx.children == null)
             return result; // TODO: apparently we need to check this ain't null, so we need to do that everywhere else lmao
@@ -63,6 +71,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public AstNode visitBiop(FNNParser.BiopContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
         BiOperatorNode result = new BiOperatorNode();
 
@@ -89,6 +98,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public AstNode visitUnop(FNNParser.UnopContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
         UnOperatorNode result = new UnOperatorNode();
 
@@ -105,6 +115,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public ExprNode visitParens(FNNParser.ParensContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = this.visit(ctx.expr_in_parens);
         Utils.ASSERT(result instanceof ExprNode, "Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
 
@@ -113,6 +125,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public AssignNode visitAssign(FNNParser.AssignContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new AssignNode();
         var value = this.visit(ctx.expr_in_assign);
         Utils.ASSERT(value instanceof ExprNode, "Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart() + " to " + ctx.expr_in_assign.getStop());
@@ -150,7 +164,6 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
                 result.Types.add(type);
                 result.Names.add(name);
                 Scopes.peek().put(name, type);
-                System.out.println("ASSIGN: " + name + " : " + type);
             }
             while (right.size() > 0) {
                 var name = ctx.ID(i++).getText();
@@ -158,7 +171,6 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
                 result.Types.add(type);
                 result.Names.add(name);
                 Scopes.peek().put(name, type);
-                System.out.println("ASSIGN: " + name + " : " + type);
             }
         }
 
@@ -167,13 +179,18 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             result.Types.add(result.Value.Type);
             result.Names.add(name);
             Scopes.peek().put(name, result.Value.Type);
-            System.out.println("ASSIGN: " + name + " : " + result.Value.Type);
+        }
+        System.out.println("---ASSIGN---");
+        for (int i = 0; i < result.Names.size(); i++) {
+            System.out.println("ASSIGN: " + result.Names.get(i) + " : " + result.Types.get(i));
         }
         return result;
     }
 
     @Override
     public EvalNode visitEval(FNNParser.EvalContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var name = ctx.ID().getText();
         for (var scope : Scopes) {
             var type = scope.get(name);
@@ -185,12 +202,14 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
                 return result;
             }
         }
-        Utils.ERREXIT("Could not evaluate variable " + name + " : " + ctx.getStart() + " to " + ctx.getStop());
+        Utils.ERREXIT("Could not evaluate variable " + name + " on line: " + ctx.getStart().getLine());
         return null;
     }
 
     @Override
     public FuncNode visitFunctionlit(FNNParser.FunctionlitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new FuncNode();
 
         var param_types = this.visit(ctx.params);
@@ -206,6 +225,10 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             Scopes.peek().put(param.Name, param.Type);
         }
 
+        var stmts = this.visit(ctx.stmts);
+        Utils.ASSERT(stmts instanceof StmtListNode, "like bruh I literally don't even know how this happened, but like I'm not confident enough in the rest of the program being correct that I think we don't need the check");
+        result.Stmts = ((StmtListNode) stmts).Stmts;
+
         var ret_expr = this.visit(ctx.return_);
         Utils.ASSERT(ret_expr instanceof ExprNode, "Funcitons must return expressions");
         var type = new FuncType();
@@ -213,10 +236,6 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         type.Ret = rets;
         type.Arg = params;
         result.Type = type;
-
-        var stmts = this.visit(ctx.stmts);
-        Utils.ASSERT(stmts instanceof StmtListNode, "like bruh I literally don't even know how this happened, but like I'm not confident enough in the rest of the program being correct that I think we don't need the check");
-        result.Stmts = ((StmtListNode) stmts).Stmts;
 
         result.Result = (ExprNode) ret_expr;
 
@@ -227,6 +246,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public ParamDeclListNode visitParamdecllist(FNNParser.ParamdecllistContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new ParamDeclListNode();
 
         for (var antlr_paramdecl_node : ctx.children) {
@@ -240,6 +261,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public ParamDeclNode visitParamdecl(FNNParser.ParamdeclContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new ParamDeclNode();
 
         result.Name = ctx.ID().getText();
@@ -253,6 +276,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public IntNode visitIntlit(FNNParser.IntlitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         IntNode result = new IntNode();
         result.Type = new BaseType(TypeEnum.Int);
         result.Value = Integer.parseInt(ctx.getText());
@@ -261,6 +286,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public FloatNode visitFloatlit(FNNParser.FloatlitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         FloatNode result = new FloatNode();
         result.Type = new BaseType(TypeEnum.Float);
         result.Value = Float.parseFloat(ctx.getText());
@@ -268,7 +295,25 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     }
 
     @Override
+    public TupleNode visitTuplelit(FNNParser.TuplelitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
+        var result = new TupleNode();
+        var elems = this.visit(ctx.exprs);
+        var type = new TupleType();
+        Utils.ASSERT(elems instanceof ExprListNode, "Error");
+        for (var expr : ((ExprListNode) elems).Exprs) {
+            type.Types.add(expr.Type);
+            result.Exprs.add(expr);
+        }
+        result.Type = type;
+        return result;
+    }
+
+    @Override
     public LayerNode visitLayerlit(FNNParser.LayerlitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         LayerNode result = new LayerNode();
         result.Type = new BaseType(TypeEnum.Layer);
         var inputsize = this.visit(ctx.input_size);
@@ -289,6 +334,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public ModelNode visitModellit(FNNParser.ModellitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new ModelNode();
         result.Type = new BaseType(TypeEnum.Model);
         result.Layers = new Vector<>();
@@ -317,6 +364,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public StringNode visitStrlit(FNNParser.StrlitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new StringNode();
         result.Type = new BaseType(TypeEnum.String);
         var content = ctx.STR();
@@ -329,6 +378,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public TrainNode visitTrain_stmt(FNNParser.Train_stmtContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new TrainNode();
         var epochs = this.visit(ctx.epochs);
         Utils.ASSERT(epochs instanceof ExprNode, "Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
@@ -365,11 +416,13 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public CallNode visitCall(FNNParser.CallContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new CallNode();
         var func_expr = this.visit(ctx.func);
         Utils.ASSERT(func_expr instanceof ExprNode, "Attempting to call non expression");
         result.Function = (ExprNode) func_expr;
-        Utils.ASSERT(result.Function.Type instanceof FuncType, "Attempting to call expression that doesn't evaluate to a function");
+        Utils.ASSERT(result.Function.Type instanceof FuncType, "Attempting to call expression, " + ctx.getText() + ", that doesn't evaluate to a function, on line " + ctx.start.getLine());
         var args_node = this.visit(ctx.exprs);
         Utils.ASSERT(args_node instanceof ExprListNode, "I'm still not entirely sure when you'd get this error... exprs is somehow not a list of exprs");
         var func_type = (FuncType) ((ExprNode) func_expr).Type;
@@ -388,6 +441,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public ExternNode visitExtern(FNNParser.ExternContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new ExternNode();
         var name = ctx.ID().getText();
 
@@ -406,6 +461,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public TypeNode visitBasetypelit(FNNParser.BasetypelitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new TypeNode();
         switch (ctx.BASETYPE().getText()) {
         case "STR":
@@ -432,6 +489,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public TypeNode visitFunctypelit(FNNParser.FunctypelitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new TypeNode();
         var type = new FuncType();
         var rets = this.visit(ctx.rets);
@@ -454,6 +513,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public TypeNode visitTupletypelit(FNNParser.TupletypelitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new TypeNode();
         var type = new TupleType();
         var types = this.visit(ctx.tupletypes);
@@ -467,6 +528,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public TypeNode visitArrtypelit(FNNParser.ArrtypelitContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new TypeNode();
         var arrtypenode = this.visit(ctx.arrtype);
         Utils.ASSERT(arrtypenode instanceof TypeNode, "Type in array is not actually a type???? huh??");
@@ -477,6 +540,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override
     public ArrAccessNode visitArraccess(FNNParser.ArraccessContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
         var result = new ArrAccessNode();
 
         var arr = this.visit(ctx.arr);

@@ -1,6 +1,6 @@
 public class FuncType extends FNNType {
-    FNNType Arg;
-    FNNType Ret;
+    TupleType Arg;
+    TupleType Ret;
 
     @Override
     public String toString() {
