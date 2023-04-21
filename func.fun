@@ -1,4 +1,7 @@
 @print_int: (INT) -> (INT)
+@print: (STR) -> (INT)
+
+print("stt")
 
 (get_func): ( a:INT ) -> {
     1

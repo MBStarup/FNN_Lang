@@ -2,8 +2,8 @@
 @print: (STR) -> (INT)
 @exp: (FLT) -> (FLT)
 
-(sigmoid): (in:FLT) -> {1 return 1.0/(1.0 + exp!(in))}
-(sigmoid_derivative): (in:FLT) -> {1 return sigmoid!(in) * (1.0 - sigmoid!(in))}
+(sigmoid): (in:FLT) -> {return 1.0/(1.0 + exp!(in))}
+(sigmoid_derivative): (in:FLT) -> {return sigmoid!(in) * (1.0 - sigmoid!(in))}
 
 (in): 784
 (out): 10

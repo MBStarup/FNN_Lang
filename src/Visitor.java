@@ -31,12 +31,14 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
         var result = new StmtListNode();
-        for (var antlr_stmt_node : ctx.children) {
-            System.out.println("going to visit: " + antlr_stmt_node.getText());
-            var ast_stmt_node = this.visit(antlr_stmt_node);
-            if (ast_stmt_node != null) { // TODO: figure out why this can happen
-                Utils.ASSERT(ast_stmt_node instanceof StmtNode, "Found " + ast_stmt_node + " in stmtList, which is not a statement");
-                result.Stmts.add((StmtNode) ast_stmt_node);
+        if (ctx.children != null) {
+            for (var antlr_stmt_node : ctx.children) {
+                System.out.println("going to visit: " + antlr_stmt_node.getText());
+                var ast_stmt_node = this.visit(antlr_stmt_node);
+                if (ast_stmt_node != null) { // TODO: figure out why this can happen
+                    Utils.ASSERT(ast_stmt_node instanceof StmtNode, "Found " + ast_stmt_node + " in stmtList, which is not a statement");
+                    result.Stmts.add((StmtNode) ast_stmt_node);
+                }
             }
         }
         return result;
