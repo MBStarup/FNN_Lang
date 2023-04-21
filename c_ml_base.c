@@ -81,7 +81,7 @@ void *ass_calloc(size_t size)
 void *ass_malloc(size_t size)
 {
     ++alloc_counter;
-    printf("malloc: %llu\n", size);
+    // printf("malloc: %llu\n", size);
     void *ptr = malloc(size);
     assert(ptr != NULL);
     return ptr;
@@ -328,10 +328,13 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
 
     double *actual_results = ass_malloc(sizeof(double *) * (layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
     double **results = (double **)(&(actual_results[1]));                       // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
-    // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
+                                                                                // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
+
+    printf("l_n: %d\n", layer_amount);
 
     for (int layer = 0; layer < layer_amount; layer++)
     {
+        printf("l: %d\n", layers[layer].out);
         results[layer] = ass_malloc(sizeof(double) * layers[layer].out);
     }
 
@@ -526,4 +529,9 @@ void E_print_lyr(int *r, layer_T l)
 {
     printf("Layer:\n\tIn: %llu\n\tOut: %llu\n", l.in, l.out);
     *r = 0;
+}
+
+void E_exp(double *res, double e)
+{
+    *res = exp(e);
 }

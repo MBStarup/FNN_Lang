@@ -225,18 +225,19 @@ public class ToCCompiler {
             Utils.ERREXIT("A model must have at least one layer");
         }
 
+        result += "(";
         result += Node.LayerSizes.size();
-        result += ",";
+        result += " -1)"; // n numbers = n-1 layers as they are paired up, ie. <100 50 10> becomes 2 layers: (100 -> 50) (50 -> 10)
 
         for (int i = 1; i < Node.LayerSizes.size(); i++) {
             result += ",";
-            result = "(layer_new((";
+            result += "(layer_new(";
             result += this.Compile(Node.LayerSizes.get(i - 1));
-            result += "),(";
+            result += ",";
             result += this.Compile(Node.LayerSizes.get(i));
-            result += "),(";
+            result += ",";
             result += this.Compile(Node.Activation);
-            result += "),(";
+            result += ",";
             result += this.Compile(Node.Derivative);
             result += "))";
         }

@@ -85,9 +85,9 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(r instanceof ExprNode, "Right operand of bi-operator was not an expression, on line: " + ctx.start.getLine());
         result.Right = (ExprNode) r;
 
-        Utils.ASSERT(result.Right.Type instanceof BaseType, "Binary operations can only be used on single value expressions, on line: " + ctx.start.getLine());
-        Utils.ASSERT(result.Left.Type instanceof BaseType, "Binary operations can only be used on single value expressions, on line: " + ctx.start.getLine());
-        // TODO: Consider other types
+        Utils.ASSERT(result.Right.Type.equals(new BaseType(TypeEnum.Float)) || result.Right.Type.equals(new BaseType(TypeEnum.Int)), "Binary operations can only be used on expressions of type FLT or INT, not " + result.Right.Type + ", on line: " + ctx.start.getLine());
+        Utils.ASSERT(result.Left.Type.equals(new BaseType(TypeEnum.Float)) || result.Left.Type.equals(new BaseType(TypeEnum.Int)), "Binary operations can only be used on expressions of type FLT or INT, not " + result.Left.Type + ", on line: " + ctx.start.getLine());
+        // TODO: Consider Lefther types
         // result.Types.add(result.Right.Types.get(0) == FNNType.Int &&
         // result.Left.Types.get(0) == FNNType.Int ? FNNType.Int : FNNType.Float);
         Utils.ASSERT(result.Left.Type.equals(result.Right.Type), "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type + ", on line: " + ctx.start.getLine());
@@ -352,10 +352,12 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var activation_expr = this.visit(ctx.activation);
         Utils.ASSERT(activation_expr instanceof ExprNode, "activation function must be an expression, on line: " + ctx.start.getLine());
         Utils.ASSERT(((ExprNode) activation_expr).Type instanceof FuncType && ((ExprNode) activation_expr).Type.equals(activation_type), "activation function must have type: " + activation_type + " , on line: " + ctx.start.getLine());
+        result.Activation = (ExprNode) activation_expr;
 
         var derivative_expr = this.visit(ctx.derivative);
-        Utils.ASSERT(activation_expr instanceof ExprNode, "activation derivative function must be an expression, on line: " + ctx.start.getLine());
-        Utils.ASSERT(((ExprNode) activation_expr).Type instanceof FuncType && ((ExprNode) activation_expr).Type.equals(activation_type), "activation derivative function must have type: " + activation_type + " , on line: " + ctx.start.getLine());
+        Utils.ASSERT(derivative_expr instanceof ExprNode, "activation derivative function must be an expression, on line: " + ctx.start.getLine());
+        Utils.ASSERT(((ExprNode) derivative_expr).Type instanceof FuncType && ((ExprNode) derivative_expr).Type.equals(activation_type), "activation derivative function must have type: " + activation_type + " , on line: " + ctx.start.getLine());
+        result.Derivative = (ExprNode) derivative_expr;
 
         result.LayerSizes = new Vector<>();
 
