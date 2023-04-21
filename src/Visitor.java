@@ -1,6 +1,8 @@
 import java.util.*;
 import java.util.stream.Collectors;
 
+import javax.sound.sampled.AudioFileFormat.Type;
+
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.stringtemplate.v4.compiler.STParser.exprNoComma_return;
 
@@ -76,19 +78,19 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         BiOperatorNode result = new BiOperatorNode();
 
         var l = this.visit(ctx.left_op);
-        Utils.ASSERT(l instanceof ExprNode, "Left operand of bi-operator was not an expression: " + ctx.left_op.getStart() + " to " + ctx.left_op.getStop());
+        Utils.ASSERT(l instanceof ExprNode, "Left operand of bi-operator was not an expression, on line: " + ctx.start.getLine());
         result.Left = (ExprNode) l;
 
         var r = this.visit(ctx.right_op);
-        Utils.ASSERT(r instanceof ExprNode, "Right operand of bi-operator was not an expression: " + ctx.right_op.getStart() + " to " + ctx.right_op.getStop());
+        Utils.ASSERT(r instanceof ExprNode, "Right operand of bi-operator was not an expression, on line: " + ctx.start.getLine());
         result.Right = (ExprNode) r;
 
-        Utils.ASSERT(result.Right.Type instanceof BaseType, "Binary operations can only be used on single value expressions");
-        Utils.ASSERT(result.Left.Type instanceof BaseType, "Binary operations can only be used on single value expressions");
+        Utils.ASSERT(result.Right.Type instanceof BaseType, "Binary operations can only be used on single value expressions, on line: " + ctx.start.getLine());
+        Utils.ASSERT(result.Left.Type instanceof BaseType, "Binary operations can only be used on single value expressions, on line: " + ctx.start.getLine());
         // TODO: Consider other types
         // result.Types.add(result.Right.Types.get(0) == FNNType.Int &&
         // result.Left.Types.get(0) == FNNType.Int ? FNNType.Int : FNNType.Float);
-        Utils.ASSERT(result.Left.Type.equals(result.Right.Type), "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type);
+        Utils.ASSERT(result.Left.Type.equals(result.Right.Type), "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type + ", on line: " + ctx.start.getLine());
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
         result.Type = result.Left.Type;
@@ -132,7 +134,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(value instanceof ExprNode, "Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart() + " to " + ctx.expr_in_assign.getStop());
         result.Value = (ExprNode) value;
         if (ctx.ID().size() > 1) {
-            Utils.ASSERT(result.Value.Type instanceof TupleType, "Trying to match non tuple type, " + result.Value.Type + ", to multiple names");
+            Utils.ASSERT(result.Value.Type instanceof TupleType, "Trying to match non tuple type, " + result.Value.Type + ", to multiple names, on line: " + ctx.start.getLine());
             var tuple = (TupleType) result.Value.Type;
             Utils.ASSERT((tuple.Types.size() <= ctx.ID().size()), "Match failure in assign, mismatched amount");
             Queue<FNNType> right = new LinkedList<>(tuple.Types);
@@ -310,27 +312,27 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public LayerNode visitLayerlit(FNNParser.LayerlitContext ctx) {
-        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+    // @Override
+    // public LayerNode visitLayerlit(FNNParser.LayerlitContext ctx) {
+    // System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
-        LayerNode result = new LayerNode();
-        result.Type = new BaseType(TypeEnum.Layer);
-        var inputsize = this.visit(ctx.input_size);
-        Utils.ASSERT(inputsize instanceof ExprNode, "Input size of layer must be an expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-        result.InputSize = (ExprNode) inputsize;
-        Utils.ASSERT(result.InputSize.Type instanceof BaseType, "Input size of layer must be a single value expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-        Utils.ASSERT(((BaseType) result.InputSize.Type).Type == TypeEnum.Int, "Input size of layer must be an integer: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
+    // LayerNode result = new LayerNode();
+    // result.Type = new BaseType(TypeEnum.Layer);
+    // var inputsize = this.visit(ctx.input_size);
+    // Utils.ASSERT(inputsize instanceof ExprNode, "Input size of layer must be an expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
+    // result.InputSize = (ExprNode) inputsize;
+    // Utils.ASSERT(result.InputSize.Type instanceof BaseType, "Input size of layer must be a single value expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
+    // Utils.ASSERT(((BaseType) result.InputSize.Type).Type == TypeEnum.Int, "Input size of layer must be an integer: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
 
-        var outputsize = this.visit(ctx.output_size);
-        Utils.ASSERT(outputsize instanceof ExprNode, "Output size of layer must be an expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
-        result.OutputSize = (ExprNode) outputsize;
-        Utils.ASSERT(result.OutputSize.Type instanceof BaseType, "Output size of layer must be a single value expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
-        Utils.ASSERT(((BaseType) result.OutputSize.Type).Type == TypeEnum.Int, "Output size of layer must be an integer: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
+    // var outputsize = this.visit(ctx.output_size);
+    // Utils.ASSERT(outputsize instanceof ExprNode, "Output size of layer must be an expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
+    // result.OutputSize = (ExprNode) outputsize;
+    // Utils.ASSERT(result.OutputSize.Type instanceof BaseType, "Output size of layer must be a single value expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
+    // Utils.ASSERT(((BaseType) result.OutputSize.Type).Type == TypeEnum.Int, "Output size of layer must be an integer: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
 
-        result.ActivationFunction = ctx.activation_function.getText();
-        return result;
-    }
+    // result.ActivationFunction = ctx.activation_function.getText();
+    // return result;
+    // }
 
     @Override
     public ModelNode visitModellit(FNNParser.ModellitContext ctx) {
@@ -338,26 +340,31 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var result = new ModelNode();
         result.Type = new BaseType(TypeEnum.Model);
-        result.Layers = new Vector<>();
-        for (var expr : ctx.children.subList(2, ctx.getChildCount() - 1)) { // TODO: gotta be a better way to get all
-                                                                            // the expressions without the "model<>"
-                                                                            // part
-            var layer = this.visit(expr);
-            Utils.ASSERT(layer instanceof ExprNode, "Model parameters must be expressions: " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
-            var exprNode = (ExprNode) layer;
-            if (exprNode.Type instanceof TupleType) {
-                for (FNNType type : ((TupleType) exprNode.Type).Types) {
-                    Utils.ASSERT(type instanceof BaseType, "Multiple nested tuples not supported for model declaration");
-                    Utils.ASSERT(((BaseType) type).Type == TypeEnum.Layer, "Model parameters must be layers, not " + exprNode.Type + ": " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
-                    result.Layers.add(exprNode);
-                }
-            } else if (exprNode.Type instanceof BaseType) {
-                Utils.ASSERT(exprNode.Type instanceof BaseType, "Multiple nested tuples not supported for model declaration");
-                Utils.ASSERT(((BaseType) exprNode.Type).Type == TypeEnum.Layer, "Model parameters must be layers, not " + exprNode.Type + ": " + ((ParserRuleContext) expr.getPayload()).getStart() + " to " + ((ParserRuleContext) expr.getPayload()).getStop());
-                result.Layers.add(exprNode);
-            } else {
-                Utils.ERREXIT("Paramters in model cannot be of type: " + exprNode.Type);
-            }
+
+        // TODO: make constructors to avoid this
+        var float_tuple = new TupleType();
+        float_tuple.Types.add(new BaseType(TypeEnum.Float));
+
+        var activation_type = new FuncType(); // Define (FLT) -> (FLT), to compare equality with
+        activation_type.Arg = float_tuple;
+        activation_type.Ret = float_tuple;
+
+        var activation_expr = this.visit(ctx.activation);
+        Utils.ASSERT(activation_expr instanceof ExprNode, "activation function must be an expression, on line: " + ctx.start.getLine());
+        Utils.ASSERT(((ExprNode) activation_expr).Type instanceof FuncType && ((ExprNode) activation_expr).Type.equals(activation_type), "activation function must have type: " + activation_type + " , on line: " + ctx.start.getLine());
+
+        var derivative_expr = this.visit(ctx.derivative);
+        Utils.ASSERT(activation_expr instanceof ExprNode, "activation derivative function must be an expression, on line: " + ctx.start.getLine());
+        Utils.ASSERT(((ExprNode) activation_expr).Type instanceof FuncType && ((ExprNode) activation_expr).Type.equals(activation_type), "activation derivative function must have type: " + activation_type + " , on line: " + ctx.start.getLine());
+
+        result.LayerSizes = new Vector<>();
+
+        var layer_size_list = this.visit(ctx.sizes);
+        Utils.ASSERT(layer_size_list instanceof ExprListNode, "BRUH");
+
+        for (var size_expr : ((ExprListNode) layer_size_list).Exprs) {
+            Utils.ASSERT(size_expr.Type.equals(new BaseType(TypeEnum.Int)), "Model sizes must be ints, on line: " + ctx.start.getLine());
+            result.LayerSizes.add(size_expr);
         }
         return result;
     }

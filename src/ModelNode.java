@@ -1,5 +1,7 @@
 import java.util.List;
 
 public class ModelNode extends ExprNode {
-    public List<ExprNode> Layers;
+    public ExprNode Activation;
+    public ExprNode Derivative;
+    public List<ExprNode> LayerSizes;
 }

@@ -65,8 +65,6 @@ public class ToCCompiler {
             return Compile((FloatNode) Node);
         else if (Node instanceof IntNode)
             return Compile((IntNode) Node);
-        else if (Node instanceof LayerNode)
-            return Compile((LayerNode) Node);
         else if (Node instanceof ModelNode)
             return Compile((ModelNode) Node);
         else if (Node instanceof EvalNode)
@@ -139,8 +137,6 @@ public class ToCCompiler {
             return "int PLACEHOLDER";
         case Float:
             return "double PLACEHOLDER";
-        case Layer:
-            return "layer_T PLACEHOLDER";
         case String:
             return "char *PLACEHOLDER";
         case Model:
@@ -223,40 +219,26 @@ public class ToCCompiler {
         return result;
     }
 
-    public String Compile(LayerNode Node) {
-        String result = "(layer_new((";
-        result += this.Compile(Node.InputSize);
-        result += "),(";
-        result += this.Compile(Node.OutputSize);
-        result += "),";
-        switch (Node.ActivationFunction) {
-        case "sigmoid":
-            result += "sigmoid_activationfunction";
-            break;
-        default:
-            System.err.println("Unknown activation function: " + Node.ActivationFunction);
-            System.exit(-1);
-            break;
-        }
-        result += "))";
-        return result;
-    }
-
     public String Compile(ModelNode Node) {
         String result = "(model_new(";
-        if (Node.Layers.size() < 1) {
-            System.err.println("A model must have at least one layer");
-            System.exit(-1);
+        if (Node.LayerSizes.size() < 1) {
+            Utils.ERREXIT("A model must have at least one layer");
         }
 
-        result += Node.Layers.size();
+        result += Node.LayerSizes.size();
         result += ",";
 
-        result += this.Compile(Node.Layers.get(0));
-
-        for (var layer : Node.Layers.subList(1, Node.Layers.size())) {
+        for (int i = 1; i < Node.LayerSizes.size(); i++) {
             result += ",";
-            result += this.Compile(layer);
+            result = "(layer_new((";
+            result += this.Compile(Node.LayerSizes.get(i - 1));
+            result += "),(";
+            result += this.Compile(Node.LayerSizes.get(i));
+            result += "),(";
+            result += this.Compile(Node.Activation);
+            result += "),(";
+            result += this.Compile(Node.Derivative);
+            result += "))";
         }
         result += "))";
         return result;
