@@ -34,7 +34,7 @@ public class ToCCompiler {
         // sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
         for (StmtNode stmt : Node.Stmts) {
             result += Compile(stmt);
-            result += ";";
+            // result += ";";
         }
         result += "return 0;}";
         return result;
@@ -288,22 +288,24 @@ public class ToCCompiler {
                 }
             }
             result += "{";
-            result += "void **TEMP = ";
-            result += Compile(Node.Value);
-            result += ";";
+            result += "void **TEMP = " + Compile(Node.Value) + ";"; // at this point we have a void** TEMP_x, that represents a single depth tuple
             for (int i = 0; i < Node.Names.size(); i++) {
                 result += Node.Names.get(i);
-                result += " = (*((";
-                result += TypeToString(Node.Types.get(i)).replaceAll("PLACEHOLDER", ""); // This has become so
-                                                                                         // compilicated that I no
-                                                                                         // longer knows what's going
-                                                                                         // on, but I can see by trial
-                                                                                         // and error this is where
-                                                                                         // PLACEHOLDER should be
-                                                                                         // removed lmao
-                result += "*)(TEMP[";
-                result += i;
-                result += "])));";
+                if (Node.Types.get(i) instanceof TupleType) {
+                    var flat = Utils.FLATTEN(Node.Types.get(i));
+                    result += " = ({(void *[]){";
+                    for (int j = 0; j < flat.Types.size(); j++) {
+                        result += "TEMP[" + i + "],";
+                        i++;
+                    }
+                    result += "};});";
+                } else {
+                    result += " = (*((";
+                    result += TypeToString(Node.Types.get(i)).replaceAll("PLACEHOLDER", ""); // gets just the type, with no name
+                    result += "*)(TEMP[";
+                    result += i;
+                    result += "])));";
+                }
             }
             result += "}";
         }
@@ -341,16 +343,36 @@ public class ToCCompiler {
 
     public String Compile(CallNode Node) {
         String result = "";
+        int t_count = 0;
         var ret_types = Utils.FLATTEN(Node.Type).Types;
         result += "({";
         for (int i = 0; i < Node.Args.size(); i++) {
-            result += tupleParamDelcare("ARG" + i, Node.Args.get(i).Type);
-            result += ";";
+            if (Node.Args.get(i).Type instanceof TupleType) {
+                for (FNNType type : ((TupleType) Node.Args.get(i).Type).Types) {
+                    Utils.ASSERT(!(type instanceof TupleType), "Multi depth tuple in c impl");
+                    result += Declare("ARGT_" + t_count++, type) + ";";
+                }
+            }
         }
+
+        t_count = 0;
+        for (int i = 0; i < Node.Args.size(); i++) {
+            if (Node.Args.get(i).Type instanceof TupleType) {
+                result += "{";
+                result += "void** T = " + Compile(Node.Args.get(i)) + ";";
+                int j = 0;
+                for (FNNType type : ((TupleType) Node.Args.get(i).Type).Types) {
+                    Utils.ASSERT(!(type instanceof TupleType), "Multi depth tuple in c impl");
+                    result += "ARGT_" + t_count++ + "= (*((" + TypeToString(type).replaceAll("PLACEHOLDER", "") + " *)(T[" + j++ + "])));";
+                }
+                result += "}";
+            }
+        }
+
         for (int i = 0; i < ret_types.size(); i++) {
-            result += Declare("TEMP" + i, ret_types.get(i));
-            result += ";";
+            result += Declare("TEMP" + i, ret_types.get(i)) + ";";
         }
+
         result += Compile(Node.Function);
         result += "(";
         if (ret_types.size() > 0) {
@@ -360,11 +382,20 @@ public class ToCCompiler {
                 result += "&TEMP" + i;
             }
         }
+
+        t_count = 0;
         for (int i = 0; i < Node.Args.size(); i++) {
             result += ",";
-            result += Compile(Node.Args.get(i));
             if (Node.Args.get(i).Type instanceof TupleType) {
-
+                int size = ((TupleType) Node.Args.get(i).Type).Types.size();
+                if (size > 0) {
+                    result += "ARGT_" + t_count++;
+                    for (int j = 1; j < size; j++) {
+                        result += ", ARGT_" + t_count++;
+                    }
+                }
+            } else {
+                result += Compile(Node.Args.get(i));
             }
         }
         result += ");";
@@ -405,17 +436,28 @@ public class ToCCompiler {
 
     public String Compile(TupleNode Node) {
         String result = "({";
-        Utils.ASSERT(Node.Type instanceof TupleType, "Type of tuple node isn't a tuple type guh"); // TODO: maybe
-                                                                                                   // redundant tbh
-        var type = (TupleType) Node.Type;
+        Utils.ASSERT(Node.Type instanceof TupleType, "Type of tuple node isn't a tuple type guh"); // TODO: maybe redundant tbh
+        var real_type = (TupleType) Node.Type;
+        var type = Utils.FLATTEN(real_type); // we implement all tuples flatly
 
         for (int i = 0; i < type.Types.size(); i++) {
-            result += Declare("T" + i, type.Types.get(i));
-            result += ";";
+            result += Declare("T" + i, type.Types.get(i)) + ";";
         }
 
-        for (int i = 0; i < type.Types.size(); i++) {
-            result += "T" + i + " = " + Compile(Node.Exprs.get(i)) + ";";
+        int tuple_num = 0;
+        for (int i = 0; i < real_type.Types.size(); i++) {
+            if (real_type.Types.get(i) instanceof TupleType) {
+                result += "void** TEMP" + tuple_num + ";";
+                result += "TEMP" + tuple_num + " = " + Compile(Node.Exprs.get(i)) + ";";
+                var flat = Utils.FLATTEN(real_type.Types.get(i)); // since they're all flat, we assume the returned tuple is flat too
+                for (int j = 0; j < flat.Types.size(); j++) {
+                    result += "/*" + flat.Types.get(j) + "*/";
+                    result += "T" + i + " = (*((" + TypeToString(flat.Types.get(j)).replaceAll("PLACEHOLDER", "*") + ")(TEMP" + tuple_num + "[" + j + "])));";
+                    i++;
+                }
+            } else {
+                result += "T" + i + " = " + Compile(Node.Exprs.get(i)) + ";";
+            }
         }
 
         result += "(void*[]){";
@@ -455,14 +497,29 @@ public class ToCCompiler {
         return result;
     }
 
+    // probably the least general code I've ever written lmao
+    private String tupleParamAddrNoTypes(String name, FNNType type) { // this is so fucking stupid, like, lmao, I can't even. I deeply apologize to anyone who ever reads this. I truly am sorry.
+        if (!(type instanceof TupleType)) {
+            return "&" + name;
+        }
+        var t = (TupleType) type;
+        String result = "";
+        if (t.Types.size() > 0) {
+            result += tupleParamAddrNoTypes(name + "_" + 0, t.Types.get(0));
+            for (int i = 1; i < t.Types.size(); i++) {
+                result += ",";
+                result += tupleParamAddrNoTypes(name + "_" + i, t.Types.get(i));
+            }
+        }
+
+        return result;
+    }
+
     public String Compile(FuncNode Node) {
         int func_num = this.funcNum++;
         Utils.ASSERT(Node.Type instanceof FuncType, "Trying to declare function with non function type, compiler shit the bed");
         var type = (FuncType) Node.Type;
-        for (int i = 0; i < type.Arg.Types.size(); i++) {
-            System.out.println("T:" + type.Arg.Types.get(i));
-        }
-        var params = Utils.FLATTEN(type.Arg);
+
         var rets = Utils.FLATTEN(type.Ret);
         String result = "({";
         result += "void ";
@@ -484,6 +541,13 @@ public class ToCCompiler {
         }
         result += ")";
         result += "{";
+
+        for (int i = 0; i < type.Arg.Types.size(); i++) {
+            if (type.Arg.Types.get(i) instanceof TupleType) {
+                result += "void** " + Node.ParamNames.get(i) + " = ((void*[]){" + tupleParamAddrNoTypes(Node.ParamNames.get(i), type.Arg.Types.get(i)) + "});";
+            }
+        }
+
         for (var stmt : Node.Stmts) {
             result += this.Compile(stmt);
             result += ";";

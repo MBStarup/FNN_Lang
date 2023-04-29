@@ -196,7 +196,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
         var name = ctx.ID().getText();
-        for (var scope : Scopes) {
+        for (int i = Scopes.size() - 1; i >= 0; i++) {
+            var scope = Scopes.get(i);
             var type = scope.get(name);
             if (type != null) {
                 System.out.println("EVAL: " + name + " : " + type);

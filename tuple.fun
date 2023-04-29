@@ -2,14 +2,6 @@
 @print_int: (INT) -> (INT)
 @print_flt: (FLT) -> (INT)
 
-(flip): (a:(INT INT) b:INT) -> {
-    (x y):a
-    return (x (y b))
-}
-(get_tuple): (_:INT)->{print!("GOT TUPLE\n") return (1 (2 3))}
-
-(a b c): (1 (2.2 "str"))
-print!("a:") print_int!(a) print!("\n")
-print!("b:") print_flt!(b) print!("\n")
-print!("c:") print!(c) print!("\n")
-print!("done!\n")
+(f): (a:INT t:(INT (INT INT))) -> {(b c d):t return a + b + c}
+(x): f!(69000 400 20 1)
+print_int!(x)

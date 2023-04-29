@@ -39,8 +39,8 @@ out.c
 # gcc output 
 *.exe
 */*.exe
-a
-*/a
+a.out
+*/a.out
 
 # Visual Studio 2015 cache/options directory
 .vs/

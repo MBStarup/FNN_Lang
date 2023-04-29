@@ -1,16 +1,28 @@
+@train: (MDL INT INT [[FLT]] [[FLT]]) -> (INT)
 @load_csv: (STR INT INT INT INT) -> (([[FLT]] [[FLT]]))
 @print: (STR) -> (INT)
-@exp: (FLT) -> (FLT)
-
-(sigmoid): (in:FLT) -> {return 1.0/(1.0 + exp!(in))}
-(sigmoid_derivative): (in:FLT) -> {return sigmoid!(in) * (1.0 - sigmoid!(in))}
 
 (in): 784
 (out): 10
 
-(train_input train_expected): load_csv!("mnist_train.csv" out in 2000 50)
-(test_input test_expected): load_csv!("mnist_test.csv" out in 500 50)
+(data): load_csv!("mnist_train.csv" out in 2000 50)
+
+(sigmoid): (in:FLT) -> {
+    @exp: (FLT) -> (FLT)
+    return 1.0/(1.0 + exp!(in))
+}
+
+(sigmoid_derivative): (in:FLT) -> {
+    @exp: (FLT) -> (FLT)
+    (sigmoid): (in:FLT) -> {
+        @exp: (FLT) -> (FLT)
+        return 1.0/(1.0 + exp!(in))
+    }
+    return sigmoid!(in) * (1.0 - sigmoid!(in))
+}
 
 (m): MODEL<sigmoid sigmoid_derivative><in 64 32 out>
-TRAIN<m 100 4 train_input train_expected>
+
+train!(m 100 4 data)
+
 print!("done")
