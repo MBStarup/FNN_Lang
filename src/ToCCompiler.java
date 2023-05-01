@@ -34,7 +34,7 @@ public class ToCCompiler {
         // sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
         for (StmtNode stmt : Node.Stmts) {
             result += Compile(stmt);
-            // result += ";";
+            result += ";";
         }
         result += "return 0;}";
         return result;
