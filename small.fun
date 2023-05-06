@@ -21,7 +21,7 @@
     return sigmoid!(in) * (1.0 - sigmoid!(in))
 }
 
-(m): MODEL<sigmoid sigmoid_derivative><in 64 32 out>
+(m): MODEL<sigmoid sigmoid_derivative><in 32 out>
 
 train!(m 100 4 data)
 

@@ -50,8 +50,8 @@ typedef struct
 
 typedef struct
 {
-    size_t in;
-    size_t out;
+    int in;
+    int out;
     double *weights;
     double *biases;
     void (*activation)(double *, double);            // Fnn calling convention
@@ -60,7 +60,7 @@ typedef struct
 
 typedef struct
 {
-    size_t layer_amount;
+    int layer_amount;
     layer_T *layers;
 } model_T;
 
@@ -73,6 +73,11 @@ void *ass_calloc(size_t size)
     ++alloc_counter;
     void *ptr = calloc(size, 1);
     assert(ptr != NULL);
+
+#ifdef MEM_PRINT
+    printf("calloc: %llu @ %llu\n", size, ptr);
+#endif
+
     return ptr;
 }
 
@@ -81,9 +86,13 @@ void *ass_calloc(size_t size)
 void *ass_malloc(size_t size)
 {
     ++alloc_counter;
-    // printf("malloc: %llu\n", size);
     void *ptr = malloc(size);
     assert(ptr != NULL);
+
+#ifdef MEM_PRINT
+    printf("malloc: %llu @ %llu\n", size, ptr);
+#endif
+
     return ptr;
 }
 
@@ -91,11 +100,16 @@ void ass_free(void *ptr)
 {
     --alloc_counter;
     free(ptr);
+
+#ifdef MEM_PRINT
+    printf("free: %llu\n", ptr);
+#endif
 }
 
-void *ass_malloc_fnn_arr(size_t elem_size, size_t count)
+void *ass_malloc_fnn_arr(int elem_size, int count)
 {
-    size_t *arr = ass_malloc(sizeof(size_t) + elem_size * count);
+    assert(elem_size > 0); // array elements must have positive size
+    int *arr = ass_malloc(sizeof(int) + elem_size * count);
     arr[0] = count;
     return (&arr[1]);
 }
@@ -116,9 +130,8 @@ model_T model_new(int amount, ...)
     va_list valist;
     va_start(valist, amount);
 
-    for (size_t i = 0; i < amount; i++)
+    for (int i = 0; i < amount; i++)
     {
-        // result.layers[i] = ((layer*)((&amount)+1))[i];
         result.layers[i] = va_arg(valist, layer_T);
     }
 
@@ -131,15 +144,15 @@ int E_number = 69;
 
 void E_square(int *r, int a) { *r = a * a; }
 
-// char *arr_new(size_t amount, size_t elem_size, ...)
+// char *arr_new(int amount, int elem_size, ...)
 // {
 //     char *result = ass_malloc(amount * elem_size);
-//     ((size_t *)result)[-1] = amount;
+//     ((int *)result)[-1] = amount;
 
 //     va_list valist;
 //     va_start(valist, amount * elem_size);
 
-//     for (size_t i = 0; i < amount * elem_size; i++)
+//     for (int i = 0; i < amount * elem_size; i++)
 //     {
 //         result[i] = va_arg(valist, char);
 //     }
@@ -153,7 +166,7 @@ void E_square(int *r, int a) { *r = a * a; }
 // arr_length: the amount of elements in the array, accepted values: {1 .. SIZE_MAX}
 // elem_size: the size of each element in bytes, accepted values: {1 .. SIZE_MAX}
 // arr: the array to shuffle
-void shuffle_arr(size_t arr_length, size_t elem_size, void *arr)
+void shuffle_arr(int arr_length, int elem_size, void *arr)
 {
     typedef unsigned char byte;
     assert(sizeof(byte) == 1);
@@ -169,8 +182,8 @@ void shuffle_arr(size_t arr_length, size_t elem_size, void *arr)
     for (int i = 0; i < arr_length * SHUFFLE_N; i++)
     {
         // pick two random indicies in the arr
-        size_t a = (size_t)(((double)rand() / (double)RAND_MAX) * (arr_length)); // Shouldn't this be "... * (arr_length - 1)"? Although when I do that it seems to never shuffle the last one so...
-        size_t b = (size_t)(((double)rand() / (double)RAND_MAX) * (arr_length)); // Shouldn't this be "... * (arr_length - 1)"? Although when I do that it seems to never shuffle the last one so...
+        int a = (int)(((double)rand() / (double)RAND_MAX) * (arr_length)); // Shouldn't this be "... * (arr_length - 1)"? Although when I do that it seems to never shuffle the last one so...
+        int b = (int)(((double)rand() / (double)RAND_MAX) * (arr_length)); // Shouldn't this be "... * (arr_length - 1)"? Although when I do that it seems to never shuffle the last one so...
         // if (a == PRINTED_EXAMPLE || b == PRINTED_EXAMPLE)
         //     printf("Shufflin %d and %d\n", a, b);
         memcpy(temp, array + (a * elem_size), elem_size);                    // temp = arr[a]
@@ -186,7 +199,9 @@ layer_T layer_new(int in, int out, void (*a)(double *, double), void (*a_derivat
     layer_T res;
 
     res.in = in;
+    printf("new l  in: %d\n", res.in);
     res.out = out;
+    printf("new l out: %d\n", res.out);
 
     res.weights = ass_malloc(sizeof(double) * in * out);
     randomize_double_arr(res.weights, in * out, 0, 1);
@@ -261,7 +276,7 @@ void print_image_data(double *data)
     SET_RESET();
 }
 
-void print_double_arr(size_t print_width, size_t size, double *arr)
+void print_double_arr(int print_width, int size, double *arr)
 {
     for (int i = 0; i < size; i++)
     {
@@ -334,17 +349,21 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
 
     for (int layer = 0; layer < layer_amount; layer++)
     {
-        printf("l: %d\n", layers[layer].out);
+        printf("l_%d: %d -> %d\n", layer, layers[layer].in, layers[layer].out);
         results[layer] = ass_malloc(sizeof(double) * layers[layer].out);
     }
 
     int *index = ass_malloc(sizeof(int) * data_amount);
-    for (size_t i = 0; i < data_amount; i++)
+    for (int i = 0; i < data_amount; i++)
     {
         index[i] = i;
     }
 
-    const size_t batch_amount = data_amount / batch_size;
+    const int batch_amount = data_amount / batch_size;
+
+    DEBUG("%d\n", batch_amount);
+    DEBUG("%d\n", batch_size);
+    DEBUG("%d\n", data_amount);
     assert(batch_amount * batch_size == data_amount); // DATA_AMOUNT should be divisble by batch_size
     for (int epoch = 0; epoch < epochs; epoch++)
     {
@@ -424,11 +443,15 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
     {
         ass_free(results[result]);
     }
+
+    printf("Done!\n");
 }
 
 void train_model(model_T model, int epochs, int batch_size, double **input_data, double **expected_output)
 {
-    int size = ((size_t *)expected_output)[-1];
+    int size = ((int *)expected_output)[-1];
+
+    printf("train_n: %d\n", size);
 
     _train_model(model, epochs, batch_size, input_data, expected_output, size);
 }
@@ -443,10 +466,10 @@ void E_train(int *r, model_T model, int epochs, int batch_size, double **input_d
 // largest_elem_size is the amount of chars in hte largest single element in the data, without the comma. Used for buffer allocation.
 void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size)
 {
-    *expected_outputs = ass_malloc(sizeof(size_t) + sizeof(double *) * data_amount);
-    *input_data = ass_malloc(sizeof(size_t) + sizeof(double *) * data_amount);
-    ((size_t *)(*expected_outputs))[-1] = data_amount;
-    ((size_t *)(*input_data))[-1] = data_amount;
+    *expected_outputs = ass_malloc(sizeof(int) + sizeof(double *) * data_amount);
+    *input_data = ass_malloc(sizeof(int) + sizeof(double *) * data_amount);
+    ((int *)(*expected_outputs))[-1] = data_amount;
+    ((int *)(*input_data))[-1] = data_amount;
 
     printf("Opening file: %s\n", filepath);
     FILE *fptr = fopen(filepath, "r");
@@ -458,11 +481,11 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
     printf("\n");
     for (int i = 0; i < data_amount; i++)
     {
-        size_t size = sizeof(size_t) + sizeof(double) * output_size;
-        (*expected_outputs)[i] = (double *)(&(((size_t *)ass_malloc(sizeof(size_t) + sizeof(double) * output_size))[1])); // TODO: free
-        (*input_data)[i] = (double *)(&(((size_t *)ass_malloc(sizeof(size_t) + sizeof(double) * input_size))[1]));        // TODO: free
-        ((size_t *)((*expected_outputs)[i]))[-1] = output_size;
-        ((size_t *)((*input_data)[i]))[-1] = input_size;
+        int size = sizeof(int) + sizeof(double) * output_size;
+        (*expected_outputs)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * output_size))[1])); // TODO: free
+        (*input_data)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * input_size))[1]));        // TODO: free
+        ((int *)((*expected_outputs)[i]))[-1] = output_size;
+        ((int *)((*input_data)[i]))[-1] = input_size;
 
         char *line = fgets(file_buffer, file_buffer_size, fptr);
         assert(line != NULL); // Ran out of lines when reading training data, make sure data_amount <= the amount of lines of atual data in the csv
@@ -511,10 +534,10 @@ void E_exit(int *r, int a)
 
 void E_getarr(int **r, int a)
 {
-    size_t *arr = ass_malloc(sizeof(size_t) + a);
+    int *arr = ass_malloc(sizeof(int) + a);
     arr[0] = a;
     (*r) = (int *)(&(arr[1]));
-    for (size_t i = 0; i < a; i++)
+    for (int i = 0; i < a; i++)
     {
         (*r)[i] = 69 + i;
     }
@@ -527,7 +550,7 @@ void E_new_dense(layer_T *result, int in, int out, void (*a)(double *, double), 
 
 void E_print_lyr(int *r, layer_T l)
 {
-    printf("Layer:\n\tIn: %llu\n\tOut: %llu\n", l.in, l.out);
+    printf("Layer:\n\tIn: %d\n\tOut: %d\n", l.in, l.out);
     *r = 0;
 }
 
