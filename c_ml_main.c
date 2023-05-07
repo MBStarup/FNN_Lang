@@ -1,6 +1,7 @@
 #include "c_ml_base.c"
 #define TRAINING_DATA_AMOUNT 1
 #define BATCH_SIZE TRAINING_DATA_AMOUNT
+#define PRINTED_EXAMPLE_AMOUNT 1
 
 int main(int argc, char const *argv[])
 {
@@ -18,8 +19,8 @@ int main(int argc, char const *argv[])
         results[layer] = ass_malloc(sizeof(double) * layers[layer].out);
     }
 
-    double **training_data_input = ass_malloc_fnn_arr(sizeof(double *), TRAINING_DATA_AMOUNT);
-    double **training_expected_output = ass_malloc_fnn_arr(sizeof(double *), TRAINING_DATA_AMOUNT);
+    double **training_data_input;      // = ass_malloc_fnn_arr(sizeof(double *), TRAINING_DATA_AMOUNT);
+    double **training_expected_output; // = ass_malloc_fnn_arr(sizeof(double *), TRAINING_DATA_AMOUNT);
 
     E_load_csv(&training_expected_output, &training_data_input, "./mnist_train.csv", OUTPUT_SIZE, INPUT_SIZE, TRAINING_DATA_AMOUNT, 50);
     model_T m = model_new(layer_amount, layers[0], layers[1]);
@@ -57,15 +58,22 @@ int main(int argc, char const *argv[])
     {
         ass_free(results[result]);
     }
+    ass_free(actual_results);
 
-    // clean up layers
-    for (int layer = 0; layer < layer_amount; layer++)
+    model_del(m);
+
+    for (int i = 0; i < ((int *)training_data_input)[-1]; i++)
     {
-        layer_del(layers[layer]);
+        ass_free_fnn_arr(training_data_input[i]);
     }
+    ass_free_fnn_arr(training_data_input);
 
-    ass_free(training_data_input);
-    ass_free(training_expected_output);
+    for (int i = 0; i < ((int *)training_expected_output)[-1]; i++)
+    {
+        ass_free_fnn_arr(training_expected_output[i]);
+    }
+    ass_free_fnn_arr(training_expected_output);
+
     DEBUG("%d\n", alloc_counter);
     return 0;
 }

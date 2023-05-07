@@ -114,6 +114,11 @@ void *ass_malloc_fnn_arr(int elem_size, int count)
     return (&arr[1]);
 }
 
+void ass_free_fnn_arr(void *arr)
+{
+    ass_free(&(((int *)arr)[-1]));
+}
+
 void randomize_double_arr(double *arr, int size, double min, double max)
 {
     for (int i = 0; i < size; i++)
@@ -219,6 +224,15 @@ void layer_del(layer_T l)
 {
     ass_free(l.biases);
     ass_free(l.weights);
+}
+
+void model_del(model_T m)
+{
+    for (int l = 0; l < m.layer_amount; l++)
+    {
+        layer_del(m.layers[l]);
+    }
+    ass_free(m.layers);
 }
 
 // Calculates the weigted sum, does not apply any activation function
@@ -337,7 +351,6 @@ void E_derivative_of_sigmoid(double *ret, double x) { *ret = derivative_of_sigmo
 
 void _train_model(model_T model, int epochs, int batch_size, double **input_data, double **expected_output, int data_amount)
 {
-
     int layer_amount = model.layer_amount;
     layer_T *layers = model.layers;
 
@@ -431,7 +444,6 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
                     ass_free(dcost_dout);
                     dcost_dout = next_dcost_dout; // reassign next_dcost_dout to dcost_dout before going to prev_layer
                 }
-
                 ass_free(next_dcost_dout);
             }
         }
@@ -443,6 +455,8 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
     {
         ass_free(results[result]);
     }
+    ass_free(actual_results);
+    ass_free(index);
 
     printf("Done!\n");
 }
@@ -462,12 +476,89 @@ void E_train(int *r, model_T model, int epochs, int batch_size, double **input_d
     *r = 0;
 }
 
+double naive_avg(double *vals, int count)
+{
+    double sum = 0;
+    for (int i = 0; i < count; i++)
+    {
+        sum += vals[i];
+    }
+    return sum / ((double)count);
+}
+
+// //! WARNING, MUTATES THE ORIGINAL ARRAY DESTRUCTIVELY
+// //! ONLY WORKS FOR POWERS OF 2
+// double mut_avg(double *vals, int count)
+// {
+//     while (count > 1) // avg them pairwise, to avoid getting too large numbers where floating point gets weird
+//     {
+//         print_double_arr(count, count, vals);
+//         printf("\n");
+//         for (int i = 0; i < (count / 2); i++)
+//         {
+//             vals[i] = (vals[i * 2] + vals[(i * 2) + 1]) / ((double)2);
+//         }
+//         count = count / 2;
+//     }
+
+//     return vals[0];
+// }
+
+double _test_model(model_T model, double **input_data, double **expected_output, int data_amount)
+{
+    int layer_amount = model.layer_amount;
+    layer_T *layers = model.layers;
+
+    double *actual_results = ass_malloc(sizeof(double *) * (layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
+    double **results = (double **)(&(actual_results[1]));                       // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
+                                                                                // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
+
+    printf("l_n: %d\n", layer_amount);
+
+    for (int layer = 0; layer < layer_amount; layer++)
+    {
+        printf("l_%d: %d -> %d\n", layer, layers[layer].in, layers[layer].out);
+        results[layer] = ass_malloc(sizeof(double) * layers[layer].out);
+    }
+
+    double *costs = ass_calloc(sizeof(double) * data_amount);
+    double avg_scalar = ((double)1) / ((double)layers[layer_amount - 1].out);
+
+    for (int test = 0; test < data_amount; test++)
+    {
+
+        // forward propegate
+        results[-1] = input_data[test]; // the "output" of the input "layer" is just the input data
+        for (int layer = 0; layer < layer_amount; layer++)
+        {
+
+            layer_apply(layers[layer], results[layer - 1], results[layer]); // apply the dense layer
+            for (int output = 0; output < layers[layer].out; output++)      // apply the activation
+            {
+
+                layers[layer].activation(&results[layer][output], results[layer][output]);
+            }
+        }
+
+        for (int out = 0; out < layers[layer_amount - 1].out; out++)
+        {
+            costs[test] += pow((results[layer_amount - 1][out] - expected_output[test][out]), 2);
+        }
+        costs[test] *= avg_scalar;
+    }
+
+    double result = naive_avg(costs, data_amount);
+    ass_free(costs);
+
+    return result;
+}
+
 // Expects the datqa to be formatted as lines in a csv, where the first elem is the correct index in the output categories, and the rest is the input data.
 // largest_elem_size is the amount of chars in hte largest single element in the data, without the comma. Used for buffer allocation.
 void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size)
 {
-    *expected_outputs = ass_malloc(sizeof(int) + sizeof(double *) * data_amount);
-    *input_data = ass_malloc(sizeof(int) + sizeof(double *) * data_amount);
+    *expected_outputs = (double **)(&(((int *)ass_malloc(sizeof(int) + sizeof(double *) * data_amount))[1])); // freed by caller ??
+    *input_data = (double **)(&(((int *)ass_malloc(sizeof(int) + sizeof(double *) * data_amount))[1]));       // freed by caller ??
     ((int *)(*expected_outputs))[-1] = data_amount;
     ((int *)(*input_data))[-1] = data_amount;
 
@@ -482,8 +573,8 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
     for (int i = 0; i < data_amount; i++)
     {
         int size = sizeof(int) + sizeof(double) * output_size;
-        (*expected_outputs)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * output_size))[1])); // TODO: free
-        (*input_data)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * input_size))[1]));        // TODO: free
+        (*expected_outputs)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * output_size))[1])); // freed by called I guess, hmmmmmm
+        (*input_data)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * input_size))[1]));        // freed by called I guess, hmmmmmm
         ((int *)((*expected_outputs)[i]))[-1] = output_size;
         ((int *)((*input_data)[i]))[-1] = input_size;
 
