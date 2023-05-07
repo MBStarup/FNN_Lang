@@ -3,12 +3,13 @@ grammar FNN
 
 program: stmts = stmtlist EOF;
 
-stmt: assign | extern | train_stmt | expr;
+stmt: assign | extern | train_stmt | expr | while_stmt;
 
 stmtlist: stmt*;
 assign: '(' ID* ')' ':' expr_in_assign = expr;
 extern: '@' ID ':' type;
-train_stmt: 'TRAIN' '<' model = expr epochs = expr batch_size = expr input = expr expected = expr '>';
+train_stmt: 'TRAIN' '<' model = ID epochs = expr batch_size = expr input = expr expected = expr '>';
+while_stmt: 'WHILE' predicate = expr '{' stmts = stmtlist '}';
 
 expr
 	: STR																					# strlit

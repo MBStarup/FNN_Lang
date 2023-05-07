@@ -1,20 +1,34 @@
-@print: (STR) -> (INT)
-@print_int: (INT) -> (INT)
-@print_flt: (FLT) -> (INT)
-@print_lyr: (LYR) -> (INT)
-@exit: (INT) -> (INT)
-@new_dense: (INT INT (FLT)->(FLT) (FLT)->(FLT)) -> (LYR)
 @load_csv: (STR INT INT INT INT) -> (([[FLT]] [[FLT]]))
-@train: (MDL INT INT ([[FLT]] [[FLT]])) -> (INT)
+@print: (STR) -> (INT)
 
-(a_sigmoid): (a:FLT) -> {1 return .2}
-(d_sigmoid): (a:FLT) -> {1 return .2}
+(in): 784
+(out): 10
 
-(layer): new_dense(784 128 (a:FLT) -> {1 return .2} (a:FLT) -> {1 return .2})
-print_lyr(layer)
+(data_in data_out): load_csv!("mnist_train.csv" out in 2000 50)
 
-(data): load_csv("../../c/c_ml/mnist_train.csv", 784, 10, 1000, 50)
+(sigmoid): (in:FLT) -> {
+    @exp: (FLT) -> (FLT)
+    return 1.0/(1.0 + exp!(in))
+}
 
-(model): MODEL<layer new_dense(128 10 a_sigmoid d_sigmoid)>
-train(model 100 4 data)
-print("done")
+(sigmoid_derivative): (in:FLT) -> {
+    @exp: (FLT) -> (FLT)
+    (sigmoid): (in:FLT) -> {
+        @exp: (FLT) -> (FLT)
+        return 1.0/(1.0 + exp!(in))
+    }
+    return sigmoid!(in) * (1.0 - sigmoid!(in))
+}
+
+(i): 3
+WHILE i { 
+    (a): "a"
+    print!(a) 
+    (i): i-1 
+}
+
+(m): MODEL<sigmoid sigmoid_derivative><in 32 out>
+
+TRAIN<m 100 100 data_in data_out>
+
+print!("done")

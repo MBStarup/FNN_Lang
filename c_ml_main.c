@@ -1,7 +1,8 @@
 #include "c_ml_base.c"
-#define TRAINING_DATA_AMOUNT 1
+#define TRAINING_DATA_AMOUNT 10000
 #define BATCH_SIZE TRAINING_DATA_AMOUNT
-#define PRINTED_EXAMPLE_AMOUNT 1
+#define PRINTED_EXAMPLE_AMOUNT 10
+#define EPOCHS 100
 
 int main(int argc, char const *argv[])
 {

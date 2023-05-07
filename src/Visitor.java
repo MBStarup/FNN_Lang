@@ -1,10 +1,6 @@
 import java.util.*;
-import java.util.stream.Collectors;
 
-import javax.sound.sampled.AudioFileFormat.Type;
-
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.stringtemplate.v4.compiler.STParser.exprNoComma_return;
+import org.antlr.v4.parse.ResyncToEndOfRuleBlock;
 
 public class Visitor extends FNNBaseVisitor<AstNode> {
 
@@ -70,6 +66,28 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             Utils.ASSERT(ast_type_node instanceof TypeNode, "Somehow we have a thing that was parsed to an typelist, but when visiting the children it doesn't result in an TypeNode");
             result.Types.add((TypeNode) ast_type_node);
         }
+        return result;
+    }
+
+    @Override
+    public AstNode visitWhile_stmt(FNNParser.While_stmtContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
+        WhileNode result = new WhileNode();
+
+        var predicate = this.visit(ctx.predicate);
+        Utils.ASSERT(predicate instanceof ExprNode, "Predicate of while stmt was not an expression, on line: " + ctx.predicate.getStart().getLine());
+        result.Predicate = (ExprNode) predicate;
+        var predicate_target_type = new BaseType(TypeEnum.Int);
+        Utils.ASSERT(result.Predicate.Type instanceof BaseType && ((BaseType) result.Predicate.Type).equals(predicate_target_type), "Predicate of while stmt is of type: " + result.Predicate.Type + ", should be: " + predicate_target_type + ", on line: " + ctx.predicate.getStart().getLine());
+
+        Scopes.push(new HashMap<String, FNNType>()); // New scope for functions
+        var stmts = this.visit(ctx.stmts);
+        Scopes.pop(); // Remove function scope
+
+        Utils.ASSERT(stmts instanceof StmtListNode, "Body of while stmt was not a stmtlist, on line: " + ctx.stmts.getStart().getLine());
+        result.Stmts = ((StmtListNode) stmts).Stmts;
+
         return result;
     }
 
@@ -196,7 +214,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
         var name = ctx.ID().getText();
-        for (int i = Scopes.size() - 1; i >= 0; i++) {
+        for (int i = Scopes.size() - 1; i >= 0; i--) {
             var scope = Scopes.get(i);
             var type = scope.get(name);
             if (type != null) {
@@ -405,14 +423,28 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(result.BatchSize.Type instanceof BaseType, "Batch size in training must be a single value expression");
         Utils.ASSERT(((BaseType) result.BatchSize.Type).Type == TypeEnum.Int, "Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
-        var model = this.visit(ctx.model);
-        Utils.ASSERT(model instanceof ExprNode, "Model in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-        result.Model = (ExprNode) model;
-        Utils.ASSERT(result.Model.Type instanceof BaseType, "Model in training must be a single value expression");
-        Utils.ASSERT(((BaseType) result.Model.Type).Type == TypeEnum.Model, "Model in training must be an model: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        // eval the model, since it's a variable name
+
+        EvalNode model = null;
+        var name = ctx.model.getText();
+        for (int i = Scopes.size() - 1; i >= 0; i--) {
+            System.out.println("scope: " + i + "/" + (Scopes.size() - 1));
+            var scope = Scopes.get(i);
+            var type = scope.get(name);
+            if (type != null) {
+                System.out.println("EVAL: " + name + " : " + type);
+                model = new EvalNode();
+                model.Type = Utils.TRY_UNWRAP(type);
+                model.Name = name;
+            }
+        }
+        Utils.ASSERT(model != null, "Could not evaluate variable " + name + " on line: " + ctx.getStart().getLine());
+        result.Model = model;
+        Utils.ASSERT(result.Model.Type instanceof BaseType, "Model in training must be a single value expression, on line: " + ctx.model.getLine());
+        Utils.ASSERT(((BaseType) result.Model.Type).Type == TypeEnum.Model, "Model in training must be an model, on line: " + ctx.model.getLine());
 
         var inputData = this.visit(ctx.input);
-        Utils.ASSERT(inputData instanceof ExprNode, "Input Data in train must be an expression: " + ctx.input.getStart() + " to " + ctx.input.getStop());
+        Utils.ASSERT(inputData instanceof ExprNode, "Input Data in train must be an expression, on line: " + ctx.input.getStart().getLine());
         result.Input = (ExprNode) inputData;
         Utils.ASSERT(result.Input.Type instanceof ArrType, "Input Data in train must be an array");
         // TODO: more type checking, I can't be assed

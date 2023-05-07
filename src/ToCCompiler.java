@@ -32,11 +32,16 @@ public class ToCCompiler {
         // result += " activation
         // sigmoid_activationfunction;\nsigmoid_activationfunction.function =
         // sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
-        for (StmtNode stmt : Node.Stmts) {
-            result += Compile(stmt);
-            result += ";";
-        }
+        result += this.Compile(Node.Stmts);
         result += "return 0;}";
+        return result;
+    }
+
+    public String Compile(List<StmtNode> Stmts) {
+        String result = "";
+        for (StmtNode stmt : Stmts) {
+            result += Compile(stmt) + ";";
+        }
         return result;
     }
 
@@ -47,6 +52,8 @@ public class ToCCompiler {
             return Compile((AssignNode) Node);
         else if (Node instanceof TrainNode)
             return Compile((TrainNode) Node);
+        else if (Node instanceof WhileNode)
+            return Compile((WhileNode) Node);
         else if (Node instanceof ExternNode)
             return Compile((ExternNode) Node);
         else {
@@ -84,6 +91,11 @@ public class ToCCompiler {
             System.exit(-1);
         }
         return null;
+    }
+
+    public String Compile(WhileNode Node) {
+        var result = "while(" + this.Compile(Node.Predicate) + "){" + this.Compile(Node.Stmts) + "}";
+        return result;
     }
 
     public String Compile(BiOperatorNode Node) {
@@ -346,7 +358,7 @@ public class ToCCompiler {
         int t_count = 0;
         var ret_types = Utils.FLATTEN(Node.Type).Types;
         result += "({";
-        for (int i = 0; i < Node.Args.size(); i++) {
+        for (int i = 0; i < Node.Args.size(); i++) { // in case of tuples, predeclare variables for each element in the tuple, as we don't pass tuples to functions. This does not need to be recursive since in c land we flatten all nested tuples to depth 1
             if (Node.Args.get(i).Type instanceof TupleType) {
                 for (FNNType type : ((TupleType) Node.Args.get(i).Type).Types) {
                     Utils.ASSERT(!(type instanceof TupleType), "Multi depth tuple in c impl");
@@ -548,13 +560,8 @@ public class ToCCompiler {
             }
         }
 
-        for (var stmt : Node.Stmts) {
-            result += this.Compile(stmt);
-            result += ";";
-        }
-        result += "(*RET0)=";
-        result += this.Compile(Node.Result);
-        result += ";";
+        result += this.Compile(Node.Stmts);
+        result += "(*RET0)=" + this.Compile(Node.Result) + ";";
         Scopes.pop();
         result += "};";
         result += "&FUNC" + func_num;
