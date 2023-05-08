@@ -322,15 +322,10 @@ public class ToCCompiler {
     }
 
     public String Compile(TrainNode Node) {
-        String result = "(train_model(";
-        result += this.Compile(Node.Model);
-        result += ",";
-        result += this.Compile(Node.Epochs);
-        result += ",";
-        result += this.Compile(Node.BatchSize);
-        result += ",";
-        result += this.Compile(Node.Input);
-        result += ",";
+        String result = "(train_model_no_batch(";
+        result += this.Compile(Node.Model) + ",";
+        result += this.Compile(Node.Epochs) + ",";
+        result += this.Compile(Node.Input) + ",";
         result += this.Compile(Node.Expected);
         result += "))";
         return result;

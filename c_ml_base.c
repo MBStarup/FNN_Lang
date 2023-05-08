@@ -23,7 +23,12 @@
 #define _NO_PRINT
 
 // -- debugging tools --
+#ifdef DEBUG_LOG
 #define DEBUG(fmt, var) printf("%s: " fmt, #var, var)
+#else
+#define DEBUG(fmt, var) ;
+#endif
+
 #define SET_RED() printf("\e[31m")
 #define SET_YELLOW() printf("\e[93m")
 #define SET_GREEN() printf("\e[92m")
@@ -204,9 +209,9 @@ layer_T layer_new(int in, int out, void (*a)(double *, double), void (*a_derivat
     layer_T res;
 
     res.in = in;
-    printf("new l  in: %d\n", res.in);
+    DEBUG("%d\n", res.in);
     res.out = out;
-    printf("new l out: %d\n", res.out);
+    DEBUG("%d\n", res.out);
 
     res.weights = ass_malloc(sizeof(double) * in * out);
     randomize_double_arr(res.weights, in * out, 0, 1);
@@ -358,11 +363,10 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
     double **results = (double **)(&(actual_results[1]));                       // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
                                                                                 // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
 
-    printf("l_n: %d\n", layer_amount);
+    DEBUG("%d\n", layer_amount);
 
     for (int layer = 0; layer < layer_amount; layer++)
     {
-        printf("l_%d: %d -> %d\n", layer, layers[layer].in, layers[layer].out);
         results[layer] = ass_malloc(sizeof(double) * layers[layer].out);
     }
 
@@ -463,9 +467,14 @@ void train_model(model_T model, int epochs, int batch_size, double **input_data,
 {
     int size = ((int *)expected_output)[-1];
 
-    printf("train_n: %d\n", size);
-
     _train_model(model, epochs, batch_size, input_data, expected_output, size);
+}
+
+void train_model_no_batch(model_T model, int epochs, double **input_data, double **expected_output)
+{
+    int size = ((int *)expected_output)[-1];
+
+    _train_model(model, epochs, size, input_data, expected_output, size);
 }
 
 void E_train(int *r, model_T model, int epochs, int batch_size, double **input_data, double **expected_output)
@@ -560,7 +569,7 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
     ((int *)(*expected_outputs))[-1] = data_amount;
     ((int *)(*input_data))[-1] = data_amount;
 
-    printf("Opening file: %s\n", filepath);
+    DEBUG("%s\n", filepath);
     FILE *fptr = fopen(filepath, "r");
     int file_buffer_size = (largest_elem_size + 1) * (input_size + 1); // make the buffer just big enough to hold a single line of well formatted data: input size (plus one for the label) times the size of the largest elem, plus 1 for comma, like "xxx,"
     char *file_buffer = ass_malloc(sizeof(char) * file_buffer_size);

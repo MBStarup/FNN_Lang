@@ -3,7 +3,7 @@
 
 (in): 784
 (out): 10
-(data_amount): 100
+(data_amount): 1000
 
 (data_out data_in): load_csv!("mnist_train.csv" out in data_amount 6)
 
@@ -25,8 +25,8 @@
 
 (i): 3
 WHILE i { 
-    TRAIN<m 100 data_amount data_in data_out>
-    print!("100 epochs done\n")
+    TRAIN<m 10 data_in data_out>
+    print!("10 epochs done\n")
     (i): i-1 
 }
 

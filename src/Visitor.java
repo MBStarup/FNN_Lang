@@ -415,11 +415,11 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(result.Epochs.Type instanceof BaseType, "Epoch in training must be a single value expression");
         Utils.ASSERT(((BaseType) result.Epochs.Type).Type == TypeEnum.Int, "Epochs in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
-        var batchSize = this.visit(ctx.batch_size);
-        Utils.ASSERT(batchSize instanceof ExprNode, "Batch size in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-        result.BatchSize = (ExprNode) batchSize;
-        Utils.ASSERT(result.BatchSize.Type instanceof BaseType, "Batch size in training must be a single value expression");
-        Utils.ASSERT(((BaseType) result.BatchSize.Type).Type == TypeEnum.Int, "Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        // var batchSize = this.visit(ctx.batch_size);
+        // Utils.ASSERT(batchSize instanceof ExprNode, "Batch size in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        // result.BatchSize = (ExprNode) batchSize;
+        // Utils.ASSERT(result.BatchSize.Type instanceof BaseType, "Batch size in training must be a single value expression");
+        // Utils.ASSERT(((BaseType) result.BatchSize.Type).Type == TypeEnum.Int, "Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
         // eval the model, since it's a variable name
 
