@@ -457,8 +457,6 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
     }
     ass_free(actual_results);
     ass_free(index);
-
-    printf("Done!\n");
 }
 
 void train_model(model_T model, int epochs, int batch_size, double **input_data, double **expected_output)

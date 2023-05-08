@@ -3,32 +3,31 @@
 
 (in): 784
 (out): 10
+(data_amount): 100
 
-(data_in data_out): load_csv!("mnist_train.csv" out in 2000 50)
+(data_out data_in): load_csv!("mnist_train.csv" out in data_amount 6)
 
 (sigmoid): (in:FLT) -> {
     @exp: (FLT) -> (FLT)
-    return 1.0/(1.0 + exp!(in))
+    return 1.0/(1.0 + exp!(-in))
 }
 
 (sigmoid_derivative): (in:FLT) -> {
     @exp: (FLT) -> (FLT)
     (sigmoid): (in:FLT) -> {
         @exp: (FLT) -> (FLT)
-        return 1.0/(1.0 + exp!(in))
+        return 1.0/(1.0 + exp!(-in))
     }
     return sigmoid!(in) * (1.0 - sigmoid!(in))
 }
 
+(m): MODEL<sigmoid sigmoid_derivative><in 128 out>
+
 (i): 3
 WHILE i { 
-    (a): "a"
-    print!(a) 
+    TRAIN<m 100 data_amount data_in data_out>
+    print!("100 epochs done\n")
     (i): i-1 
 }
-
-(m): MODEL<sigmoid sigmoid_derivative><in 32 out>
-
-TRAIN<m 100 100 data_in data_out>
 
 print!("done")

@@ -1,7 +1,5 @@
 import java.util.*;
 
-import org.antlr.v4.parse.ResyncToEndOfRuleBlock;
-
 public class Visitor extends FNNBaseVisitor<AstNode> {
 
     public Stack<Map<String, FNNType>> Scopes;

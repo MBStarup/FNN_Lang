@@ -1,9 +1,4 @@
-import java.lang.ProcessBuilder.Redirect.Type;
 import java.util.*;
-
-import javax.swing.text.Utilities;
-
-import org.antlr.v4.codegen.model.chunk.ThisRulePropertyRef_parser;
 
 public class ToCCompiler {
     // public String Compile(AstNode Node) {

@@ -109,17 +109,71 @@ int main(int argc, char const *argv[])
         int TEMP0;
         square(&TEMP0, 2);
         {
-        int TEMP1;
-        square(&TEMP1, TEMP0);
-        FINAL0 = TEMP1;
-        }    
+            int TEMP1;
+            square(&TEMP1, TEMP0);
+            FINAL0 = TEMP1;
+        }
     }
     FINAL0;
-
-
-
-
-
-
-
 }
+
+/* paste for print
+;
+    double **actual_results = ass_malloc(sizeof(double *) * (m.layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
+    double **results = &(actual_results[1]);                                       // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
+    // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
+    for (int layer = 0; layer < m.layer_amount; layer++)
+    {
+        results[layer] = ass_malloc(sizeof(double) * m.layers[layer].out);
+    }
+    // print examples to look at
+    for (int printed_example = 0; printed_example < 5; printed_example++)
+    {
+        printf("Using model on data nr. (%d):\n", printed_example);
+        print_image_data(data_in[printed_example]); // print the example image
+
+        // forward propegate
+        results[-1] = data_in[printed_example];
+        for (int layer = 0; layer < m.layer_amount; layer++)
+        {
+            {
+                layer_apply(m.layers[layer], results[layer - 1], results[layer]);
+                for (int output = 0; output < m.layers[layer].out; output++)
+                {
+                    m.layers[layer].activation(&results[layer][output], results[layer][output]);
+                }
+            }
+        }
+
+        // softmax((layers[layer_amount - 1].out, results[layer_amount - 1], results[layer_amount - 1]);
+
+        printf("Results data nr. (%d):\n", printed_example);
+        print_double_arr(m.layers[m.layer_amount - 1].out, m.layers[m.layer_amount - 1].out, results[m.layer_amount - 1]);
+        printf("\n____________________________________\n");
+    }
+    // clean up result buffers
+    // results[-1] doesn't need to be cleaned, as it's just a pointer to part of the data[] array
+    for (int result = 0; result < m.layer_amount; result++)
+    {
+        ass_free(results[result]);
+    }
+    ass_free(actual_results);
+
+
+
+
+*/
+
+/*
+
+    void (*sig)(double *, double) = &E_sigmoid;
+    void (*sig_d)(double *, double) = &E_derivative_of_sigmoid;
+    double input = 0.69;
+    double result;
+    (*sig)(&result, input);
+    DEBUG("%lf\n", result);
+    (*sigmoid)(&result, input);
+    DEBUG("%lf\n", result);
+    exit(0);
+
+*/

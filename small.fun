@@ -9,14 +9,14 @@
 
 (sigmoid): (in:FLT) -> {
     @exp: (FLT) -> (FLT)
-    return 1.0/(1.0 + exp!(in))
+    return 1.0/(1.0 + exp!(-in))
 }
 
 (sigmoid_derivative): (in:FLT) -> {
     @exp: (FLT) -> (FLT)
     (sigmoid): (in:FLT) -> {
         @exp: (FLT) -> (FLT)
-        return 1.0/(1.0 + exp!(in))
+        return 1.0/(1.0 + exp!(-in))
     }
     return sigmoid!(in) * (1.0 - sigmoid!(in))
 }
