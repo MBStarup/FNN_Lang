@@ -14,6 +14,8 @@ public class BaseType extends FNNType {
     public boolean equals(Object other) {
         if (other == null)
             return false;
+        if (other instanceof TupleType)
+            return other.equals(this);
         if (!(other instanceof BaseType))
             return false;
 

@@ -68,7 +68,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     }
 
     @Override
-    public AstNode visitWhile_stmt(FNNParser.While_stmtContext ctx) {
+    public WhileNode visitWhile_stmt(FNNParser.While_stmtContext ctx) {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
         WhileNode result = new WhileNode();
@@ -90,7 +90,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     }
 
     @Override
-    public AstNode visitBiop(FNNParser.BiopContext ctx) {
+    public BiOperatorNode visitBiop(FNNParser.BiopContext ctx) {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
         BiOperatorNode result = new BiOperatorNode();
@@ -106,8 +106,6 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(result.Right.Type.equals(new BaseType(TypeEnum.Float)) || result.Right.Type.equals(new BaseType(TypeEnum.Int)), "Binary operations can only be used on expressions of type FLT or INT, not " + result.Right.Type + ", on line: " + ctx.start.getLine());
         Utils.ASSERT(result.Left.Type.equals(new BaseType(TypeEnum.Float)) || result.Left.Type.equals(new BaseType(TypeEnum.Int)), "Binary operations can only be used on expressions of type FLT or INT, not " + result.Left.Type + ", on line: " + ctx.start.getLine());
         // TODO: Consider Lefther types
-        // result.Types.add(result.Right.Types.get(0) == FNNType.Int &&
-        // result.Left.Types.get(0) == FNNType.Int ? FNNType.Int : FNNType.Float);
         Utils.ASSERT(result.Left.Type.equals(result.Right.Type), "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type + ", on line: " + ctx.start.getLine());
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
@@ -117,7 +115,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     }
 
     @Override
-    public AstNode visitUnop(FNNParser.UnopContext ctx) {
+    public UnOperatorNode visitUnop(FNNParser.UnopContext ctx) {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
         UnOperatorNode result = new UnOperatorNode();
@@ -133,15 +131,15 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public ExprNode visitParens(FNNParser.ParensContext ctx) {
-        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+    // @Override
+    // public ExprNode visitParens(FNNParser.ParensContext ctx) {
+    // System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
-        var result = this.visit(ctx.expr_in_parens);
-        Utils.ASSERT(result instanceof ExprNode, "Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
+    // var result = this.visit(ctx.expr_in_parens);
+    // Utils.ASSERT(result instanceof ExprNode, "Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
 
-        return (ExprNode) result; // this being hard-doed kinda sucks
-    }
+    // return (ExprNode) result; // this being hard-doed kinda sucks
+    // }
 
     @Override
     public AssignNode visitAssign(FNNParser.AssignContext ctx) {

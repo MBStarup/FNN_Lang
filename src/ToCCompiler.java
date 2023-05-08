@@ -175,9 +175,11 @@ public class ToCCompiler {
 
     public static String TypeToString(TupleType Type) {
         String result = "";
-        Utils.ASSERT(Type.Types.size() > 0, "Empty tuple. TODO: consider allowing empty tuples."); // TODO: consider
-                                                                                                   // allowing empty
-                                                                                                   // tuples
+        Utils.ASSERT(Type.Types.size() > 0, "Empty tuple. TODO: consider allowing empty tuples."); // TODO: consider allowing empty tuples
+
+        if (Type.Types.size() == 1)
+            return TypeToString(Type.Types.get(0));
+
         result += TypeToString(Type.Types.get(0));
         for (int i = 1; i < Type.Types.size(); i++) {
             result += ",";
@@ -437,11 +439,15 @@ public class ToCCompiler {
     }
 
     public String Compile(TupleNode Node) {
-        String result = "({";
         Utils.ASSERT(Node.Type instanceof TupleType, "Type of tuple node isn't a tuple type guh"); // TODO: maybe redundant tbh
         var real_type = (TupleType) Node.Type;
         var type = Utils.FLATTEN(real_type); // we implement all tuples flatly
 
+        if (type.Types.size() == 1) {
+            return this.Compile(Node.Exprs.get(0)); // single tuples are just ignored outside the type system
+        }
+
+        String result = "({";
         for (int i = 0; i < type.Types.size(); i++) {
             result += Declare("T" + i, type.Types.get(i)) + ";";
         }
