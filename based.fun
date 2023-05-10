@@ -1,6 +1,7 @@
 @load_csv: (STR INT INT INT INT) -> (([[FLT]] [[FLT]]))
 @print: (STR) -> (INT)
 @print_flt: (FLT) -> (INT)
+@print_int: (INT) -> (INT)
 
 (in): 784
 (out): 10
@@ -24,12 +25,17 @@
 
 (m): NN(sigmoid sigmoid_derivative)(in 128 out)
 
-(err): 10.0
-WHILE (err > 0.01) { 
+(i): 0
+(err): 99.9
+WHILE (err > 0.02) { 
+    (i): i + 1
     TRAIN(m 1 train_data_in train_data_out)
-    print!("\n epoch done, err: ")
-    print_flt!(err)
     (err): TEST(m test_data_in test_data_out)
+    print!("epoch ")
+    print_int!(i)
+    print!(" done, err: ")
+    print_flt!(err)
+    print!("\n")
 }
 
 print!("done")

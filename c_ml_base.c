@@ -566,7 +566,7 @@ double test_model(model_T mdl, double **in, double **out)
 {
     int size = ((int *)out)[-1];
 
-    _test_model(mdl, in, out, size);
+    return _test_model(mdl, in, out, size);
 }
 
 // Expects the datqa to be formatted as lines in a csv, where the first elem is the correct index in the output categories, and the rest is the input data.
