@@ -77,7 +77,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(predicate instanceof ExprNode, "Predicate of while stmt was not an expression, on line: " + ctx.predicate.getStart().getLine());
         result.Predicate = (ExprNode) predicate;
         var predicate_target_type = new BaseType(TypeEnum.Int);
-        Utils.ASSERT(result.Predicate.Type instanceof BaseType && ((BaseType) result.Predicate.Type).equals(predicate_target_type), "Predicate of while stmt is of type: " + result.Predicate.Type + ", should be: " + predicate_target_type + ", on line: " + ctx.predicate.getStart().getLine());
+        Utils.ASSERT((result.Predicate.Type).equals(predicate_target_type), "Predicate of while stmt is of type: " + result.Predicate.Type + ", should be: " + predicate_target_type + ", on line: " + ctx.predicate.getStart().getLine());
 
         Scopes.push(new HashMap<String, FNNType>()); // New scope for functions
         var stmts = this.visit(ctx.stmts);
@@ -109,7 +109,10 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(result.Left.Type.equals(result.Right.Type), "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type + ", on line: " + ctx.start.getLine());
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
-        result.Type = result.Left.Type;
+        if (result.Operator == OpEnum.GreaterThan || result.Operator == OpEnum.LessThan || result.Operator == OpEnum.Equals)
+            result.Type = new BaseType(TypeEnum.Int);
+        else
+            result.Type = result.Left.Type;
 
         return result;
     }
@@ -127,6 +130,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         result.Type = Utils.TRY_UNWRAP(result.Operand.Type);
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
+        if (result.Operator != OpEnum.Minus && result.Operator != OpEnum.Plus)
+            Utils.ERREXIT("unexpected unary operator: " + result.Operator);
 
         return result;
     }
@@ -573,7 +578,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var result = new TypeNode();
         var arrtypenode = this.visit(ctx.arrtype);
         Utils.ASSERT(arrtypenode instanceof TypeNode, "Type in array is not actually a type???? huh??");
-        var type = new ArrType(((TypeNode) arrtypenode).Type, 69); // TODO: something about the size??
+        var type = new ArrType(((TypeNode) arrtypenode).Type);
         result.Type = Utils.TRY_UNWRAP(type);
         return result;
     }
@@ -594,6 +599,31 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(index instanceof ExprNode, "Array index must be an expression, not: " + index.getClass());
         result.Index = (ExprNode) index;
         Utils.ASSERT(result.Index.Type.equals(new BaseType(TypeEnum.Int)), "Index must evaluate to an int, not: " + result.Index.Type);
+
+        return result;
+    }
+
+    @Override
+    public TestNode visitTestexpr(FNNParser.TestexprContext ctx) {
+        System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
+
+        var result = new TestNode();
+
+        var mdl = this.visit(ctx.model);
+        Utils.ASSERT(mdl instanceof ExprNode && ((ExprNode) mdl).Type.equals(new BaseType(TypeEnum.Model)), "Can only test models, not " + mdl + " on line: " + ctx.getStart().getLine());
+        result.Model = (ExprNode) mdl;
+
+        var float_arr_arr_type = new ArrType(new ArrType(new BaseType(TypeEnum.Float)));
+
+        var in = this.visit(ctx.in);
+        Utils.ASSERT(in instanceof ExprNode && ((ExprNode) in).Type.equals(float_arr_arr_type), "Can only test models with in:[[FLT]], not " + in + " on line: " + ctx.getStart().getLine());
+        result.In = (ExprNode) in;
+
+        var out = this.visit(ctx.out);
+        Utils.ASSERT(out instanceof ExprNode && ((ExprNode) out).Type.equals(float_arr_arr_type), "Can only test models with out:[[FLT]], not " + out + " on line: " + ctx.getStart().getLine());
+        result.Out = (ExprNode) out;
+
+        result.Type = new BaseType(TypeEnum.Float);
 
         return result;
     }

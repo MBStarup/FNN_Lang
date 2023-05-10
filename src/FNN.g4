@@ -8,7 +8,7 @@ stmt: assign | extern | train_stmt | expr | while_stmt;
 stmtlist: stmt*;
 assign: '(' ID* ')' ':' expr_in_assign = expr;
 extern: '@' ID ':' type;
-train_stmt: 'TRAIN' '<' model = ID epochs = expr input = expr expected = expr '>';
+train_stmt: 'TRAIN' '(' model = ID epochs = expr input = expr expected = expr ')';
 while_stmt: 'WHILE' predicate = expr '{' stmts = stmtlist '}';
 
 expr
@@ -20,9 +20,10 @@ expr
 	| left_op = expr OPERATOR right_op = expr												# biop
 	| OPERATOR op = expr																	# unop
 	| ID																					# eval
-	| 'MODEL' '<' activation = expr derivative = expr '>' '<' sizes = exprlist '>'			# modellit
+	| 'NN' '(' activation = expr derivative = expr ')' '(' sizes = exprlist ')'				# modellit
 	| arr = expr '[' index = expr ']'														# arraccess
 	| '(' params = paramdecllist ')' '->' '{' stmts = stmtlist 'return' return = expr '}'	# functionlit
+	| 'TEST' '(' model = expr in = expr out = expr ')'										# testexpr
 	;
 exprlist: expr*;
 paramdecl: ID ':' param_type = type;
@@ -31,9 +32,9 @@ paramdecllist: paramdecl*;
 type: BASETYPE # basetypelit | '(' args = typelist ')' '->' '(' rets = typelist ')' # functypelit | '[' arrtype = type ']' # arrtypelit | '(' tupletypes = typelist ')' # tupletypelit;
 typelist: type*;
 
-BASETYPE: 'STR' | 'FLT' | 'INT' | 'MDL';
+BASETYPE: 'STR' | 'FLT' | 'INT' | 'FNN';
 
-OPERATOR: '*' | '/' | '+' | '-';
+OPERATOR: '*' | '/' | '+' | '-' | '<' | '>' | '=';
 INT: [0-9]+;
 FLOAT: [0-9]* '.' [0-9]+;
 ID: [a-z_]+;

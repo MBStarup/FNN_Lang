@@ -81,6 +81,8 @@ public class ToCCompiler {
             return Compile((ArrAccessNode) Node);
         else if (Node instanceof FuncNode)
             return Compile((FuncNode) Node);
+        else if (Node instanceof TestNode)
+            return Compile((TestNode) Node);
         else {
             System.err.println("Unexpected ExprNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
             System.exit(-1);
@@ -108,6 +110,15 @@ public class ToCCompiler {
             break;
         case Divide:
             result += " / ";
+            break;
+        case LessThan:
+            result += " < ";
+            break;
+        case GreaterThan:
+            result += " > ";
+            break;
+        case Equals:
+            result += " == ";
             break;
         default:
             System.err.println("Unknown binary-operator: " + Node.Operator + " exiting...");
@@ -329,6 +340,15 @@ public class ToCCompiler {
         result += this.Compile(Node.Epochs) + ",";
         result += this.Compile(Node.Input) + ",";
         result += this.Compile(Node.Expected);
+        result += "))";
+        return result;
+    }
+
+    public String Compile(TestNode Node) {
+        String result = "(test_model(";
+        result += this.Compile(Node.Model) + ",";
+        result += this.Compile(Node.In) + ",";
+        result += this.Compile(Node.Out);
         result += "))";
         return result;
     }

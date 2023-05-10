@@ -520,11 +520,13 @@ double _test_model(model_T model, double **input_data, double **expected_output,
     double **results = (double **)(&(actual_results[1]));                       // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
                                                                                 // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
 
-    printf("l_n: %d\n", layer_amount);
+    DEBUG("%d\n", layer_amount);
 
     for (int layer = 0; layer < layer_amount; layer++)
     {
+#ifdef DEBUG_LOG
         printf("l_%d: %d -> %d\n", layer, layers[layer].in, layers[layer].out);
+#endif
         results[layer] = ass_malloc(sizeof(double) * layers[layer].out);
     }
 
@@ -560,6 +562,13 @@ double _test_model(model_T model, double **input_data, double **expected_output,
     return result;
 }
 
+double test_model(model_T mdl, double **in, double **out)
+{
+    int size = ((int *)out)[-1];
+
+    _test_model(mdl, in, out, size);
+}
+
 // Expects the datqa to be formatted as lines in a csv, where the first elem is the correct index in the output categories, and the rest is the input data.
 // largest_elem_size is the amount of chars in hte largest single element in the data, without the comma. Used for buffer allocation.
 void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size)
@@ -576,7 +585,6 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
 
     // the first line (the one that explains the layout).
     fgets(file_buffer, file_buffer_size, fptr);
-    printf("\n");
     for (int i = 0; i < data_amount; i++)
     {
         int size = sizeof(int) + sizeof(double) * output_size;
