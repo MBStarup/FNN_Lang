@@ -34,7 +34,7 @@ typelist: type*;
 
 BASETYPE: 'STR' | 'FLT' | 'INT' | 'FNN';
 
-OPERATOR: '*' | '/' | '+' | '-' | '<' | '>' | '=';
+OPERATOR: '*' | '/' | '+' | '-' | '<' | '>' | '=' | '^';
 INT: [0-9]+;
 FLOAT: [0-9]* '.' [0-9]+;
 ID: [a-z_]+;

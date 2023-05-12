@@ -1,5 +1,5 @@
 public enum OpEnum {
-    Minus, Plus, Multiply, Divide, LessThan, GreaterThan, Equals;
+    Minus, Plus, Multiply, Divide, LessThan, GreaterThan, Equals, Power;
 
     public static OpEnum parseChar(char c) {
         switch (c) {
@@ -11,13 +11,14 @@ public enum OpEnum {
             return OpEnum.Multiply;
         case '/':
             return OpEnum.Divide;
-        case 'L':
         case '<':
             return OpEnum.LessThan;
         case '>':
             return OpEnum.GreaterThan;
         case '=':
             return OpEnum.Equals;
+        case '^':
+            return OpEnum.Power;
 
         default:
             throw new IllegalArgumentException("char: " + c + " Could not be parsed");

@@ -17,7 +17,7 @@ public class ToCCompiler {
     }
 
     public String Compile(ProgramNode Node) {
-        String result = "#include <stdio.h>\n#include \"c_ml_base.c\"\n";
+        String result = "#include <math.h>\n#include <stdio.h>\n#include \"c_ml_base.c\"\n";
         // result += "#define TRAINING_DATA_AMOUNT 12\n";
         result += "int main(int argc, char* argv[]){";
         // result += " double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble
@@ -97,35 +97,43 @@ public class ToCCompiler {
 
     public String Compile(BiOperatorNode Node) {
         String result = "(";
-        result += Compile(Node.Left);
-        switch (Node.Operator) {
-        case Plus:
-            result += " + ";
-            break;
-        case Minus:
-            result += " - ";
-            break;
-        case Multiply:
-            result += " * ";
-            break;
-        case Divide:
-            result += " / ";
-            break;
-        case LessThan:
-            result += " < ";
-            break;
-        case GreaterThan:
-            result += " > ";
-            break;
-        case Equals:
-            result += " == ";
-            break;
-        default:
-            System.err.println("Unknown binary-operator: " + Node.Operator + " exiting...");
-            System.exit(-1);
-            break;
+        if (Node.Operator == OpEnum.Power) {
+            result += "pow(";
+            result += Compile(Node.Left);
+            result += ",";
+            result += Compile(Node.Right);
+            result += ")";
+        } else {
+            result += Compile(Node.Left);
+            switch (Node.Operator) {
+            case Plus:
+                result += " + ";
+                break;
+            case Minus:
+                result += " - ";
+                break;
+            case Multiply:
+                result += " * ";
+                break;
+            case Divide:
+                result += " / ";
+                break;
+            case LessThan:
+                result += " < ";
+                break;
+            case GreaterThan:
+                result += " > ";
+                break;
+            case Equals:
+                result += " == ";
+                break;
+            default:
+                System.err.println("Unknown binary-operator: " + Node.Operator + " exiting...");
+                System.exit(-1);
+                break;
+            }
+            result += Compile(Node.Right);
         }
-        result += Compile(Node.Right);
         result += ")";
         return result;
     }
