@@ -558,6 +558,11 @@ double _test_model(model_T model, double **input_data, double **expected_output,
 
     double result = naive_avg(costs, data_amount);
     ass_free(costs);
+    for (int layer = 0; layer < layer_amount; layer++)
+    {
+        ass_free(results[layer]);
+    }
+    ass_free(actual_results);
 
     return result;
 }

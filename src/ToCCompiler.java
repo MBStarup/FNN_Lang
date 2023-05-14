@@ -8,17 +8,18 @@ public class ToCCompiler {
     // return null;
     // }
 
-    public Stack<Map<String, Boolean>> Scopes;
-    private int funcNum;
+    public Stack<Map<String, FNNType>> Scopes;
+    private int funcNum = 0;
+    private int indexNum = 0;
 
     public ToCCompiler() {
         Scopes = new Stack<>();
-        Scopes.push(new HashMap<>());
     }
 
     public String Compile(ProgramNode Node) {
         String result = "#include <math.h>\n#include <stdio.h>\n#include \"c_ml_base.c\"\n";
         // result += "#define TRAINING_DATA_AMOUNT 12\n";
+        Scopes.push(new HashMap<>());
         result += "int main(int argc, char* argv[]){";
         // result += " double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble
         // *training_expected_output[TRAINING_DATA_AMOUNT];\nload_csv(training_expected_output,
@@ -28,6 +29,7 @@ public class ToCCompiler {
         // sigmoid_activationfunction;\nsigmoid_activationfunction.function =
         // sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
         result += this.Compile(Node.Stmts);
+        result += CleanUp(Scopes.pop());
         result += "return 0;}";
         return result;
     }
@@ -299,7 +301,7 @@ public class ToCCompiler {
 
         if (Node.Names.size() == 1) {
             if (!(isDeclared(Node.Names.get(0)))) { // not declared
-                Scopes.peek().put(Node.Names.get(0), true);
+                Scopes.peek().put(Node.Names.get(0), Node.Types.get(0));
                 result += Declare(Node.Names.get(0), Node.Types.get(0));
             } else {
                 result += Node.Names.get(0);
@@ -310,7 +312,7 @@ public class ToCCompiler {
         } else {
             for (int i = 0; i < Node.Names.size(); i++) {
                 if (!(isDeclared(Node.Names.get(i)))) { // not declared
-                    Scopes.peek().put(Node.Names.get(i), true);
+                    Scopes.peek().put(Node.Names.get(i), Node.Types.get(i));
                     result += Declare(Node.Names.get(i), Node.Types.get(i));
                     result += ";";
                 }
@@ -569,11 +571,11 @@ public class ToCCompiler {
             }
         }
 
-        Scopes.push(new HashMap<String, Boolean>()); // New scope for functions
+        Scopes.push(new HashMap<>()); // New scope for functions
         for (int i = 0; i < type.Arg.Types.size(); i++) {
             result += ",";
             result += tupleParamDelcare(Node.ParamNames.get(i), type.Arg.Types.get(i));
-            Scopes.peek().put(Node.ParamNames.get(i), true);
+            Scopes.peek().put(Node.ParamNames.get(i), type.Arg.Types.get(i));
         }
         result += ")";
         result += "{";
@@ -586,13 +588,52 @@ public class ToCCompiler {
 
         result += this.Compile(Node.Stmts);
         result += "(*RET0)=" + this.Compile(Node.Result) + ";";
-        Scopes.pop();
+
+        result += CleanUp(Scopes.pop()); // Add mem cleanup code to the end of the function for all heap allocated memory in the function
+
         result += "};";
         result += "&FUNC" + func_num;
         result += ";})";
 
         return result;
 
+    }
+
+    public String CleanUp(Map<String, FNNType> Scope) {
+        var result = "";
+        for (var name : Scope.keySet()) {
+            result += CleanUpSingle(name, Scope.get(name));
+        }
+        return result;
+    }
+
+    public String CleanUpSingle(String Name, FNNType Type) {
+        if (Type instanceof ArrType) {
+
+            var index = "INDEX" + indexNum++;
+            var result = "for (int " + index + " = 0; " + index + " < " + LengthOfArr(Name) + "; " + index + "++){" + CleanUpSingle(Name + "[" + index + "]", ((ArrType) Type).Type) + "};";
+            result += "(ass_free_fnn_arr(" + Name + "));";
+            --indexNum;
+            return result;
+
+        } else if (Type instanceof TupleType) {
+            var result = "";
+            for (int i = 0; i < ((TupleType) Type).Types.size(); i++) { // TODO: figure out where tuples should be stored, cuz I think stmt-expressions might clean the scope on exit...
+                result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), Type) + ";";
+            }
+            return result;
+        } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.Model) {
+            return "(model_del(" + Name + "));";
+        }
+        return ""; // rest of Basetypes and functypes are stack allocated
+    }
+
+    public String IndexTuple(String Name, TupleType Type, int i) {
+        return "(*((" + Type.Types.get(i) + "*)(" + Name + "[" + i + "])))";
+    }
+
+    public String LengthOfArr(String Name) {
+        return "((int *)" + Name + ")[-1]";
     }
 
 }
