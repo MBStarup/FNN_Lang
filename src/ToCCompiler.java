@@ -619,7 +619,7 @@ public class ToCCompiler {
         } else if (Type instanceof TupleType) {
             var result = "";
             for (int i = 0; i < ((TupleType) Type).Types.size(); i++) { // TODO: figure out where tuples should be stored, cuz I think stmt-expressions might clean the scope on exit...
-                result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), Type) + ";";
+                result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), ((TupleType) Type).Types.get(i)) + ";";
             }
             return result;
         } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.Model) {
