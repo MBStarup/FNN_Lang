@@ -22,7 +22,7 @@ expr
 	| ID																					# eval
 	| 'NN' '(' activation = expr derivative = expr ')' '(' sizes = exprlist ')'				# modellit
 	| arr = expr '[' index = expr ']'														# arraccess
-	| '(' params = paramdecllist ')' '->' '{' stmts = stmtlist 'return' return = expr '}'	# functionlit
+	| '(' params = paramdecllist ')' '->' '{' stmts = stmtlist 'RETURN' return = expr '}'	# functionlit
 	| 'TEST' '(' model = expr in = expr out = expr ')'										# testexpr
 	;
 exprlist: expr*;
