@@ -1,2 +1,2 @@
-public class FNNType {
+public abstract class FNNType {
 }

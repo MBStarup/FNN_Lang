@@ -136,16 +136,6 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    // @Override
-    // public ExprNode visitParens(FNNParser.ParensContext ctx) {
-    // System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
-
-    // var result = this.visit(ctx.expr_in_parens);
-    // Utils.ASSERT(result instanceof ExprNode, "Contents of parens was not an expression: " + ctx.expr_in_parens.getStart() + " to " + ctx.expr_in_parens.getStop());
-
-    // return (ExprNode) result; // this being hard-doed kinda sucks
-    // }
-
     @Override
     public AssignNode visitAssign(FNNParser.AssignContext ctx) {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
@@ -202,10 +192,6 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             result.Types.add(result.Value.Type);
             result.Names.add(name);
             Scopes.peek().put(name, result.Value.Type);
-        }
-        System.out.println("---ASSIGN---");
-        for (int i = 0; i < result.Names.size(); i++) {
-            System.out.println("ASSIGN: " + result.Names.get(i) + " : " + result.Types.get(i));
         }
         return result;
     }
@@ -334,34 +320,12 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    // @Override
-    // public LayerNode visitLayerlit(FNNParser.LayerlitContext ctx) {
-    // System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
-
-    // LayerNode result = new LayerNode();
-    // result.Type = new BaseType(TypeEnum.Layer);
-    // var inputsize = this.visit(ctx.input_size);
-    // Utils.ASSERT(inputsize instanceof ExprNode, "Input size of layer must be an expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-    // result.InputSize = (ExprNode) inputsize;
-    // Utils.ASSERT(result.InputSize.Type instanceof BaseType, "Input size of layer must be a single value expression: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-    // Utils.ASSERT(((BaseType) result.InputSize.Type).Type == TypeEnum.Int, "Input size of layer must be an integer: " + ctx.input_size.getStart() + " to " + ctx.input_size.getStop());
-
-    // var outputsize = this.visit(ctx.output_size);
-    // Utils.ASSERT(outputsize instanceof ExprNode, "Output size of layer must be an expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
-    // result.OutputSize = (ExprNode) outputsize;
-    // Utils.ASSERT(result.OutputSize.Type instanceof BaseType, "Output size of layer must be a single value expression: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
-    // Utils.ASSERT(((BaseType) result.OutputSize.Type).Type == TypeEnum.Int, "Output size of layer must be an integer: " + ctx.output_size.getStart() + " to " + ctx.output_size.getStop());
-
-    // result.ActivationFunction = ctx.activation_function.getText();
-    // return result;
-    // }
-
     @Override
-    public ModelNode visitModellit(FNNParser.ModellitContext ctx) {
+    public NNNode visitNnlit(FNNParser.NnlitContext ctx) {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 
-        var result = new ModelNode();
-        result.Type = new BaseType(TypeEnum.Model);
+        var result = new NNNode();
+        result.Type = new BaseType(TypeEnum.NN);
 
         // TODO: make constructors to avoid this
         var float_tuple = new TupleType();
@@ -387,7 +351,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(layer_size_list instanceof ExprListNode, "BRUH");
 
         for (var size_expr : ((ExprListNode) layer_size_list).Exprs) {
-            Utils.ASSERT(size_expr.Type.equals(new BaseType(TypeEnum.Int)), "Model sizes must be ints, on line: " + ctx.start.getLine());
+            Utils.ASSERT(size_expr.Type.equals(new BaseType(TypeEnum.Int)), "NN layer sizes must be ints, on line: " + ctx.start.getLine());
             result.LayerSizes.add(size_expr);
         }
         return result;
@@ -418,31 +382,23 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(result.Epochs.Type instanceof BaseType, "Epoch in training must be a single value expression");
         Utils.ASSERT(((BaseType) result.Epochs.Type).Type == TypeEnum.Int, "Epochs in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
 
-        // var batchSize = this.visit(ctx.batch_size);
-        // Utils.ASSERT(batchSize instanceof ExprNode, "Batch size in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-        // result.BatchSize = (ExprNode) batchSize;
-        // Utils.ASSERT(result.BatchSize.Type instanceof BaseType, "Batch size in training must be a single value expression");
-        // Utils.ASSERT(((BaseType) result.BatchSize.Type).Type == TypeEnum.Int, "Batch size in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
-
-        // eval the model, since it's a variable name
-
-        EvalNode model = null;
-        var name = ctx.model.getText();
+        EvalNode nn = null;
+        var name = ctx.nn.getText();
         for (int i = Scopes.size() - 1; i >= 0; i--) {
             System.out.println("scope: " + i + "/" + (Scopes.size() - 1));
             var scope = Scopes.get(i);
             var type = scope.get(name);
             if (type != null) {
                 System.out.println("EVAL: " + name + " : " + type);
-                model = new EvalNode();
-                model.Type = Utils.TRY_UNWRAP(type);
-                model.Name = name;
+                nn = new EvalNode();
+                nn.Type = Utils.TRY_UNWRAP(type);
+                nn.Name = name;
             }
         }
-        Utils.ASSERT(model != null, "Could not evaluate variable " + name + " on line: " + ctx.getStart().getLine());
-        result.Model = model;
-        Utils.ASSERT(result.Model.Type instanceof BaseType, "Model in training must be a single value expression, on line: " + ctx.model.getLine());
-        Utils.ASSERT(((BaseType) result.Model.Type).Type == TypeEnum.Model, "Model in training must be an model, on line: " + ctx.model.getLine());
+        Utils.ASSERT(nn != null, "Could not evaluate variable " + name + " on line: " + ctx.getStart().getLine());
+        result.NN = nn;
+        Utils.ASSERT(result.NN.Type instanceof BaseType, "NN in training must be a single value expression, on line: " + ctx.nn.getLine());
+        Utils.ASSERT(((BaseType) result.NN.Type).Type == TypeEnum.NN, "Model in training must be an model, on line: " + ctx.nn.getLine());
 
         var inputData = this.visit(ctx.input);
         Utils.ASSERT(inputData instanceof ExprNode, "Input Data in train must be an expression, on line: " + ctx.input.getStart().getLine());
@@ -519,11 +475,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         case "FLT":
             result.Type = new BaseType(TypeEnum.Float);
             break;
-        case "LYR":
-            result.Type = new BaseType(TypeEnum.Layer);
-            break;
-        case "MDL":
-            result.Type = new BaseType(TypeEnum.Model);
+        case "FNN":
+            result.Type = new BaseType(TypeEnum.NN);
             break;
         default:
             Utils.ERREXIT("Mismatched basetype: " + ctx.BASETYPE().getText());
@@ -609,9 +562,9 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var result = new TestNode();
 
-        var mdl = this.visit(ctx.model);
-        Utils.ASSERT(mdl instanceof ExprNode && ((ExprNode) mdl).Type.equals(new BaseType(TypeEnum.Model)), "Can only test models, not " + mdl + " on line: " + ctx.getStart().getLine());
-        result.Model = (ExprNode) mdl;
+        var nn = this.visit(ctx.nn);
+        Utils.ASSERT(nn instanceof ExprNode && ((ExprNode) nn).Type.equals(new BaseType(TypeEnum.NN)), "Can only test models, not " + nn + " on line: " + ctx.getStart().getLine());
+        result.NN = (ExprNode) nn;
 
         var float_arr_arr_type = new ArrType(new ArrType(new BaseType(TypeEnum.Float)));
 

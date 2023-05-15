@@ -69,8 +69,8 @@ public class ToCCompiler {
             return Compile((FloatNode) Node);
         else if (Node instanceof IntNode)
             return Compile((IntNode) Node);
-        else if (Node instanceof ModelNode)
-            return Compile((ModelNode) Node);
+        else if (Node instanceof NNNode)
+            return Compile((NNNode) Node);
         else if (Node instanceof EvalNode)
             return Compile((EvalNode) Node);
         else if (Node instanceof StringNode)
@@ -167,7 +167,7 @@ public class ToCCompiler {
             return "double PLACEHOLDER";
         case String:
             return "char *PLACEHOLDER";
-        case Model:
+        case NN:
             return "model_T PLACEHOLDER";
         default:
             Utils.ERREXIT("Unexpected type (" + Enum + ") cannot be converted to c-type");
@@ -249,10 +249,10 @@ public class ToCCompiler {
         return result;
     }
 
-    public String Compile(ModelNode Node) {
+    public String Compile(NNNode Node) {
         String result = "(model_new(";
         if (Node.LayerSizes.size() < 1) {
-            Utils.ERREXIT("A model must have at least one layer");
+            Utils.ERREXIT("A NN must have at least one layer");
         }
 
         result += "(";
@@ -346,7 +346,7 @@ public class ToCCompiler {
 
     public String Compile(TrainNode Node) {
         String result = "(train_model_no_batch(";
-        result += this.Compile(Node.Model) + ",";
+        result += this.Compile(Node.NN) + ",";
         result += this.Compile(Node.Epochs) + ",";
         result += this.Compile(Node.Input) + ",";
         result += this.Compile(Node.Expected);
@@ -356,7 +356,7 @@ public class ToCCompiler {
 
     public String Compile(TestNode Node) {
         String result = "(test_model(";
-        result += this.Compile(Node.Model) + ",";
+        result += this.Compile(Node.NN) + ",";
         result += this.Compile(Node.In) + ",";
         result += this.Compile(Node.Out);
         result += "))";
@@ -622,7 +622,7 @@ public class ToCCompiler {
                 result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), Type) + ";";
             }
             return result;
-        } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.Model) {
+        } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.NN) {
             return "(model_del(" + Name + "));";
         }
         return ""; // rest of Basetypes and functypes are stack allocated

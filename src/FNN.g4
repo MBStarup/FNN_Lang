@@ -8,7 +8,7 @@ stmt: assign | extern | train_stmt | expr | while_stmt;
 stmtlist: stmt*;
 assign: '(' ID* ')' ':' expr_in_assign = expr;
 extern: '@' ID ':' type;
-train_stmt: 'TRAIN' '(' model = ID epochs = expr input = expr expected = expr ')';
+train_stmt: 'TRAIN' '(' nn = ID epochs = expr input = expr expected = expr ')';
 while_stmt: 'WHILE' predicate = expr '{' stmts = stmtlist '}';
 
 expr
@@ -20,10 +20,10 @@ expr
 	| left_op = expr OPERATOR right_op = expr												# biop
 	| OPERATOR op = expr																	# unop
 	| ID																					# eval
-	| 'NN' '(' activation = expr derivative = expr ')' '(' sizes = exprlist ')'				# modellit
+	| 'NN' '(' activation = expr derivative = expr ')' '(' sizes = exprlist ')'				# nnlit
 	| arr = expr '[' index = expr ']'														# arraccess
 	| '(' params = paramdecllist ')' '->' '{' stmts = stmtlist 'RETURN' return = expr '}'	# functionlit
-	| 'TEST' '(' model = expr in = expr out = expr ')'										# testexpr
+	| 'TEST' '(' nn = expr in = expr out = expr ')'											# testexpr
 	;
 exprlist: expr*;
 paramdecl: ID ':' param_type = type;
