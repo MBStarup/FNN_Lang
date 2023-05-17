@@ -345,7 +345,7 @@ public class ToCCompiler {
     }
 
     public String Compile(TrainNode Node) {
-        String result = "(train_model_no_batch(";
+        String result = "(train_model(";
         result += this.Compile(Node.NN) + ",";
         result += this.Compile(Node.Rate) + ",";
         result += this.Compile(Node.Epochs) + ",";

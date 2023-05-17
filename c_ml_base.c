@@ -354,7 +354,7 @@ void E_derivative_of_relu(double *ret, double x) { *ret = derivative_of_relu(x);
 void E_sigmoid(double *ret, double x) { *ret = sigmoid(x); }                             // FNN calling convention version
 void E_derivative_of_sigmoid(double *ret, double x) { *ret = derivative_of_sigmoid(x); } // FNN calling convention version
 
-void _train_model(model_T model, double learning_rate, int epochs, int batch_size, double **input_data, double **expected_output, int data_amount)
+void _train_model(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output, int data_amount)
 {
     int layer_amount = model.layer_amount;
     layer_T *layers = model.layers;
@@ -376,26 +376,17 @@ void _train_model(model_T model, double learning_rate, int epochs, int batch_siz
         index[i] = i;
     }
 
-    const int batch_amount = data_amount / batch_size;
-
     DEBUG("%lf\n", learning_rate);
-    DEBUG("%d\n", batch_amount);
-    DEBUG("%d\n", batch_size);
     DEBUG("%d\n", data_amount);
-    assert(batch_amount * batch_size == data_amount); // DATA_AMOUNT should be divisble by batch_size
     for (int epoch = 0; epoch < epochs; epoch++)
     {
 
         shuffle_arr(data_amount, sizeof(index[0]), index); // Shuffle array to use as index LMAO
-
-        for (int batch = 0; batch < batch_amount; batch++)
-        {
-
-            for (int training = 0; training < batch_size; training++)
+            for (int training = 0; training < data_amount; training++)
             {
 
                 // forward propegate
-                results[-1] = input_data[index[batch * batch_size + training]]; // the "output" of the input "layer" is just the input data
+                results[-1] = input_data[index[training]]; // the "output" of the input "layer" is just the input data
                 for (int layer = 0; layer < layer_amount; layer++)
                 {
 
@@ -415,7 +406,7 @@ void _train_model(model_T model, double learning_rate, int epochs, int batch_siz
                 for (int out = 0; out < layers[layer_amount - 1].out; out++)
                 {
 
-                    dcost_dout[out] = (results[layer_amount - 1][out] - expected_output[index[batch * batch_size + training]][out]);
+                    dcost_dout[out] = (results[layer_amount - 1][out] - expected_output[index[training]][out]);
                 }
 
                 // Backpropagate
@@ -449,7 +440,6 @@ void _train_model(model_T model, double learning_rate, int epochs, int batch_siz
                     dcost_dout = next_dcost_dout; // reassign next_dcost_dout to dcost_dout before going to prev_layer
                 }
                 ass_free(next_dcost_dout);
-            }
         }
     }
 
@@ -463,23 +453,23 @@ void _train_model(model_T model, double learning_rate, int epochs, int batch_siz
     ass_free(index);
 }
 
-void train_model(model_T model, double learning_rate, int epochs, int batch_size, double **input_data, double **expected_output)
+void train_model(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
 {
     int size = ((int *)expected_output)[-1];
 
-    _train_model(model, learning_rate, epochs, batch_size, input_data, expected_output, size);
+    _train_model(model, learning_rate, epochs, input_data, expected_output, size);
 }
 
-void train_model_no_batch(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
+/* void train_model_no_batch(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
 {
     int size = ((int *)expected_output)[-1];
 
     _train_model(model, learning_rate, epochs, size, input_data, expected_output, size);
-}
+} */
 
-void E_train(int *r, model_T model, double learning_rate, int epochs, int batch_size, double **input_data, double **expected_output)
+void E_train(int *r, model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
 {
-    train_model(model, learning_rate, epochs, batch_size, input_data, expected_output);
+    train_model(model, learning_rate, epochs, input_data, expected_output);
     *r = 0;
 }
 
@@ -668,4 +658,39 @@ void E_print_lyr(int *r, layer_T l)
 void E_exp(double *res, double e)
 {
     *res = exp(e);
+}
+
+void E_tstwithprint(int* r, model_T m, double **data_in)
+{
+    *r = 0;
+    double **actual_results = ass_malloc(sizeof(double *) * (m.layer_amount + 1)); 
+    double **results = &(actual_results[1]);                                       
+    for (int layer = 0; layer < m.layer_amount; layer++)
+    {
+        results[layer] = ass_malloc(sizeof(double) * m.layers[layer].out);
+    }
+    for (int printed_example = 0; printed_example < 5; printed_example++)
+    {
+        printf("Using model on data nr. (%d):\n", printed_example);
+        print_image_data(data_in[printed_example]);
+        results[-1] = data_in[printed_example];
+        for (int layer = 0; layer < m.layer_amount; layer++)
+        {
+            {
+                layer_apply(m.layers[layer], results[layer - 1], results[layer]);
+                for (int output = 0; output < m.layers[layer].out; output++)
+                {
+                    m.layers[layer].activation(&results[layer][output], results[layer][output]);
+                }
+            }
+        }
+        printf("Results data nr. (%d):\n", printed_example);
+        print_double_arr(m.layers[m.layer_amount - 1].out, m.layers[m.layer_amount - 1].out, results[m.layer_amount - 1]);
+        printf("\n____________________________________\n");
+    }
+    for (int result = 0; result < m.layer_amount; result++)
+    {
+        ass_free(results[result]);
+    }
+    ass_free(actual_results);
 }
