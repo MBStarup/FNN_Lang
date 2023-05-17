@@ -381,65 +381,65 @@ void _train_model(model_T model, double learning_rate, int epochs, double **inpu
     for (int epoch = 0; epoch < epochs; epoch++)
     {
 
-        shuffle_arr(data_amount, sizeof(index[0]), index); // Shuffle array to use as index LMAO
-            for (int training = 0; training < data_amount; training++)
+        // shuffle_arr(data_amount, sizeof(index[0]), index); // Shuffle array to use as index LMAO
+        for (int training = 0; training < data_amount; training++)
+        {
+
+            // forward propegate
+            results[-1] = input_data[index[training]]; // the "output" of the input "layer" is just the input data
+            for (int layer = 0; layer < layer_amount; layer++)
             {
 
-                // forward propegate
-                results[-1] = input_data[index[training]]; // the "output" of the input "layer" is just the input data
-                for (int layer = 0; layer < layer_amount; layer++)
+                layer_apply(layers[layer], results[layer - 1], results[layer]); // apply the dense layer
+                for (int output = 0; output < layers[layer].out; output++)      // apply the activation
                 {
 
-                    layer_apply(layers[layer], results[layer - 1], results[layer]); // apply the dense layer
-                    for (int output = 0; output < layers[layer].out; output++)      // apply the activation
+                    layers[layer].activation(&results[layer][output], results[layer][output]);
+                }
+            }
+
+            // setup for backpropagation
+            double *dcost_dout = ass_calloc(sizeof(double) * layers[layer_amount - 1].out);
+
+            // compute derivative of error with respect to network's output
+            // ie. for the 'euclidian distance' cost function, (output  - expected)^2, this would be 2(output - expected) ∝ (output - expected)
+            for (int out = 0; out < layers[layer_amount - 1].out; out++)
+            {
+
+                dcost_dout[out] = (results[layer_amount - 1][out] - expected_output[index[training]][out]);
+            }
+
+            // Backpropagate
+            double *next_dcost_dout;
+            for (int layer = layer_amount - 1; layer >= 0; layer--)
+            {
+
+                /*
+                 * side note:
+                 * we're being kinda wastefull here to help generalize, since we're allocating a big array for the dcost_dout of the input values,
+                 * values for it, just to throw them out since that isn't a real layer. Definetly a possible place to optimize
+                 * if we're fine with introducing more hard coded "edge cases" such as the first and last loop
+                 */
+                next_dcost_dout = ass_calloc(sizeof(double) * layers[layer].in); // alloc new array according to the previous layers (next in the backpropagation, since we're propagating backwards) output, aka this layers input
+
+                for (int out = 0; out < layers[layer].out; out++)
+                {
+                    double dout_dz;
+                    layers[layer].activation_derivative(&dout_dz, results[layer][out]); //! <- only real diff I can see is that in the example that works, this uses the "Out" value after activation instead of the "z" value before activation, so why does 3B1B say it's the derivative of the activation of z???
+                    for (int input = 0; input < layers[layer].in; input++)
                     {
 
-                        layers[layer].activation(&results[layer][output], results[layer][output]);
+                        double dz_dw = results[layer - 1][input];
+                        next_dcost_dout[input] += layers[layer].weights[out * layers[layer].in + input] * dcost_dout[out] * dout_dz; // uses old weight, so has to come before adjustment
+                        layers[layer].weights[out * layers[layer].in + input] -= learning_rate * dcost_dout[out] * dout_dz * dz_dw;  // adjust weight
                     }
+                    layers[layer].biases[out] -= learning_rate * dcost_dout[out] * dout_dz; // adjust bias
                 }
 
-                // setup for backpropagation
-                double *dcost_dout = ass_calloc(sizeof(double) * layers[layer_amount - 1].out);
-
-                // compute derivative of error with respect to network's output
-                // ie. for the 'euclidian distance' cost function, (output  - expected)^2, this would be 2(output - expected) ∝ (output - expected)
-                for (int out = 0; out < layers[layer_amount - 1].out; out++)
-                {
-
-                    dcost_dout[out] = (results[layer_amount - 1][out] - expected_output[index[training]][out]);
-                }
-
-                // Backpropagate
-                double *next_dcost_dout;
-                for (int layer = layer_amount - 1; layer >= 0; layer--)
-                {
-
-                    /*
-                     * side note:
-                     * we're being kinda wastefull here to help generalize, since we're allocating a big array for the dcost_dout of the input values,
-                     * values for it, just to throw them out since that isn't a real layer. Definetly a possible place to optimize
-                     * if we're fine with introducing more hard coded "edge cases" such as the first and last loop
-                     */
-                    next_dcost_dout = ass_calloc(sizeof(double) * layers[layer].in); // alloc new array according to the previous layers (next in the backpropagation, since we're propagating backwards) output, aka this layers input
-
-                    for (int out = 0; out < layers[layer].out; out++)
-                    {
-                        double dout_dz;
-                        layers[layer].activation_derivative(&dout_dz, results[layer][out]); //! <- only real diff I can see is that in the example that works, this uses the "Out" value after activation instead of the "z" value before activation, so why does 3B1B say it's the derivative of the activation of z???
-                        for (int input = 0; input < layers[layer].in; input++)
-                        {
-
-                            double dz_dw = results[layer - 1][input];
-                            next_dcost_dout[input] += layers[layer].weights[out * layers[layer].in + input] * dcost_dout[out] * dout_dz; // uses old weight, so has to come before adjustment
-                            layers[layer].weights[out * layers[layer].in + input] -= learning_rate * dcost_dout[out] * dout_dz * dz_dw;  // adjust weight
-                        }
-                        layers[layer].biases[out] -= learning_rate * dcost_dout[out] * dout_dz; // adjust bias
-                    }
-
-                    ass_free(dcost_dout);
-                    dcost_dout = next_dcost_dout; // reassign next_dcost_dout to dcost_dout before going to prev_layer
-                }
-                ass_free(next_dcost_dout);
+                ass_free(dcost_dout);
+                dcost_dout = next_dcost_dout; // reassign next_dcost_dout to dcost_dout before going to prev_layer
+            }
+            ass_free(next_dcost_dout);
         }
     }
 
@@ -660,34 +660,30 @@ void E_exp(double *res, double e)
     *res = exp(e);
 }
 
-void E_tstwithprint(int* r, model_T m, double **data_in)
+void E_tstwithprint(int *r, model_T m, double *image)
 {
     *r = 0;
-    double **actual_results = ass_malloc(sizeof(double *) * (m.layer_amount + 1)); 
-    double **results = &(actual_results[1]);                                       
+    double **actual_results = ass_malloc(sizeof(double *) * (m.layer_amount + 1));
+    double **results = &(actual_results[1]);
     for (int layer = 0; layer < m.layer_amount; layer++)
     {
         results[layer] = ass_malloc(sizeof(double) * m.layers[layer].out);
     }
-    for (int printed_example = 0; printed_example < 5; printed_example++)
+    print_image_data(image);
+    results[-1] = image;
+    for (int layer = 0; layer < m.layer_amount; layer++)
     {
-        printf("Using model on data nr. (%d):\n", printed_example);
-        print_image_data(data_in[printed_example]);
-        results[-1] = data_in[printed_example];
-        for (int layer = 0; layer < m.layer_amount; layer++)
         {
+            layer_apply(m.layers[layer], results[layer - 1], results[layer]);
+            for (int output = 0; output < m.layers[layer].out; output++)
             {
-                layer_apply(m.layers[layer], results[layer - 1], results[layer]);
-                for (int output = 0; output < m.layers[layer].out; output++)
-                {
-                    m.layers[layer].activation(&results[layer][output], results[layer][output]);
-                }
+                m.layers[layer].activation(&results[layer][output], results[layer][output]);
             }
         }
-        printf("Results data nr. (%d):\n", printed_example);
-        print_double_arr(m.layers[m.layer_amount - 1].out, m.layers[m.layer_amount - 1].out, results[m.layer_amount - 1]);
-        printf("\n____________________________________\n");
     }
+    printf("Results\n");
+    print_double_arr(m.layers[m.layer_amount - 1].out, m.layers[m.layer_amount - 1].out, results[m.layer_amount - 1]);
+    printf("\n____________________________________\n");
     for (int result = 0; result < m.layer_amount; result++)
     {
         ass_free(results[result]);
