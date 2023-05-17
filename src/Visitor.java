@@ -380,7 +380,13 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(epochs instanceof ExprNode, "Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
         result.Epochs = (ExprNode) epochs;
         Utils.ASSERT(result.Epochs.Type instanceof BaseType, "Epoch in training must be a single value expression");
-        Utils.ASSERT(((BaseType) result.Epochs.Type).Type == TypeEnum.Int, "Epochs in training must be an integer: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
+        Utils.ASSERT(((BaseType) result.Epochs.Type).Type == TypeEnum.Int, "Epochs in training must be an integer, on line: " + ctx.epochs.getStart().getLine());
+
+        var rate = this.visit(ctx.rate);
+        Utils.ASSERT(rate instanceof ExprNode, "Rate in training must be an expression, on line: " + ctx.epochs.getStart().getLine());
+        result.Rate = (ExprNode) rate;
+        Utils.ASSERT(result.Rate.Type instanceof BaseType, "Rate in training must be a single value expression");
+        Utils.ASSERT(((BaseType) result.Rate.Type).Type == TypeEnum.Float, "Rate in training must be an float, on line: " + ctx.epochs.getStart().getLine());
 
         EvalNode nn = null;
         var name = ctx.nn.getText();
@@ -407,7 +413,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         // TODO: more type checking, I can't be assed
 
         var expectedOutput = this.visit(ctx.expected);
-        Utils.ASSERT(expectedOutput instanceof ExprNode, "Expected Output in train must be an expression: " + ctx.expected.getStart() + " to " + ctx.expected.getStop());
+        Utils.ASSERT(expectedOutput instanceof ExprNode, "Expected Output in train must be an expression, on line: " + ctx.expected.getStart().getLine());
         result.Expected = (ExprNode) expectedOutput;
         Utils.ASSERT(result.Expected.Type instanceof ArrType, "Expected Putput in train must be an array");
         // TODO: more type checking, I can't be assed

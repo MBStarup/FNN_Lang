@@ -8,7 +8,7 @@ stmt: assign | extern | train_stmt | expr | while_stmt;
 stmtlist: stmt*;
 assign: '(' ID* ')' ':' expr_in_assign = expr;
 extern: '@' ID ':' type;
-train_stmt: 'TRAIN' '(' nn = ID epochs = expr input = expr expected = expr ')';
+train_stmt: 'TRAIN' '(' nn = ID rate = expr epochs = expr input = expr expected = expr ')';
 while_stmt: 'WHILE' predicate = expr '{' stmts = stmtlist '}';
 
 expr

@@ -1,5 +1,4 @@
 @load_csv: (STR INT INT INT INT) -> (([[FLT]] [[FLT]])) 
-@print: (STR) -> (INT)
 
 (in): 784 
 (out): 10 
@@ -17,10 +16,8 @@
 
 (m): NN(sigmoid sigmoid_derivative)(in 128 out)
 
-print!("hello")
 (err): 99.9
 WHILE (err > 0.02) {
-    TRAIN(m 1 train_data_in train_data_out)
+    TRAIN(m 0.15 100 train_data_in train_data_out)
     (err): TEST(m test_data_in test_data_out)
-    print!("one")
 } 

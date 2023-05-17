@@ -354,7 +354,7 @@ void E_derivative_of_relu(double *ret, double x) { *ret = derivative_of_relu(x);
 void E_sigmoid(double *ret, double x) { *ret = sigmoid(x); }                             // FNN calling convention version
 void E_derivative_of_sigmoid(double *ret, double x) { *ret = derivative_of_sigmoid(x); } // FNN calling convention version
 
-void _train_model(model_T model, int epochs, int batch_size, double **input_data, double **expected_output, int data_amount)
+void _train_model(model_T model, double learning_rate, int epochs, int batch_size, double **input_data, double **expected_output, int data_amount)
 {
     int layer_amount = model.layer_amount;
     layer_T *layers = model.layers;
@@ -378,6 +378,7 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
 
     const int batch_amount = data_amount / batch_size;
 
+    DEBUG("%lf\n", learning_rate);
     DEBUG("%d\n", batch_amount);
     DEBUG("%d\n", batch_size);
     DEBUG("%d\n", data_amount);
@@ -418,7 +419,6 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
                 }
 
                 // Backpropagate
-                double eta = 0.15;
                 double *next_dcost_dout;
                 for (int layer = layer_amount - 1; layer >= 0; layer--)
                 {
@@ -440,9 +440,9 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
 
                             double dz_dw = results[layer - 1][input];
                             next_dcost_dout[input] += layers[layer].weights[out * layers[layer].in + input] * dcost_dout[out] * dout_dz; // uses old weight, so has to come before adjustment
-                            layers[layer].weights[out * layers[layer].in + input] -= eta * dcost_dout[out] * dout_dz * dz_dw;            // adjust weight
+                            layers[layer].weights[out * layers[layer].in + input] -= learning_rate * dcost_dout[out] * dout_dz * dz_dw;  // adjust weight
                         }
-                        layers[layer].biases[out] -= eta * dcost_dout[out] * dout_dz; // adjust bias
+                        layers[layer].biases[out] -= learning_rate * dcost_dout[out] * dout_dz; // adjust bias
                     }
 
                     ass_free(dcost_dout);
@@ -463,23 +463,23 @@ void _train_model(model_T model, int epochs, int batch_size, double **input_data
     ass_free(index);
 }
 
-void train_model(model_T model, int epochs, int batch_size, double **input_data, double **expected_output)
+void train_model(model_T model, double learning_rate, int epochs, int batch_size, double **input_data, double **expected_output)
 {
     int size = ((int *)expected_output)[-1];
 
-    _train_model(model, epochs, batch_size, input_data, expected_output, size);
+    _train_model(model, learning_rate, epochs, batch_size, input_data, expected_output, size);
 }
 
-void train_model_no_batch(model_T model, int epochs, double **input_data, double **expected_output)
+void train_model_no_batch(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
 {
     int size = ((int *)expected_output)[-1];
 
-    _train_model(model, epochs, size, input_data, expected_output, size);
+    _train_model(model, learning_rate, epochs, size, input_data, expected_output, size);
 }
 
-void E_train(int *r, model_T model, int epochs, int batch_size, double **input_data, double **expected_output)
+void E_train(int *r, model_T model, double learning_rate, int epochs, int batch_size, double **input_data, double **expected_output)
 {
-    train_model(model, epochs, batch_size, input_data, expected_output);
+    train_model(model, learning_rate, epochs, batch_size, input_data, expected_output);
     *r = 0;
 }
 

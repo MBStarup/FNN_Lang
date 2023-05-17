@@ -3,4 +3,5 @@ public class TrainNode extends StmtNode {
     public ExprNode Epochs;
     public ExprNode Input;
     public ExprNode Expected;
+    public ExprNode Rate;
 }
