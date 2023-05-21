@@ -176,43 +176,6 @@ public class ToCCompiler {
         return null;
     }
 
-    public static String TypeToString(ArrType Type) {
-        return TypeToString(Type.Type).replaceAll("PLACEHOLDER", "*PLACEHOLDER");
-    }
-
-    public static String TypeToString(FuncType Type) {
-        String result = "";
-        result += "void (*PLACEHOLDER)("; // all funcitons return void
-        var rets = TypeToString(Type.Ret).replaceAll("PLACEHOLDER", "*"); // Return types are actually pointers to that
-                                                                          // type
-        if (rets.length() > 0) {
-            rets += ",";
-        }
-        result += rets;
-        result += TypeToString(Type.Arg).replaceAll("PLACEHOLDER", ""); // Argument types have no names
-        result += ")";
-        return result;
-    }
-
-    public static String TypeToString(TupleType Type) {
-        String result = "";
-        Utils.ASSERT(Type.Types.size() > 0, "Empty tuple. TODO: consider allowing empty tuples."); // TODO: consider allowing empty tuples
-
-        if (Type.Types.size() == 1)
-            return TypeToString(Type.Types.get(0));
-
-        result += TypeToString(Type.Types.get(0));
-        for (int i = 1; i < Type.Types.size(); i++) {
-            result += ",";
-            result += TypeToString(Type.Types.get(i)); // TODO: something about PLACEHOLDER?
-        }
-        return result;
-    }
-
-    public static String TypeToString(BaseType Type) {
-        return TypeEnumToString(Type.Type);
-    }
-
     public static String TypeToString(FNNType Type) {
         if (Type instanceof BaseType) {
             return TypeToString((BaseType) Type);
@@ -226,6 +189,45 @@ public class ToCCompiler {
             Utils.ERREXIT("Unknown type " + Type + ", maybe update switch case");
             return null; // unreachable
         }
+    }
+
+    public static String TypeToString(ArrType Type) {
+        return TypeToString(Type.Type).replaceAll("PLACEHOLDER", "*PLACEHOLDER");
+    }
+
+    public static String TypeToString(FuncType Type) {
+        String result = "";
+        result += "void (*PLACEHOLDER)("; // all funcitons return void
+
+        var rets = Utils.FLATTEN(Type.Ret).Types;
+        var args = Utils.FLATTEN(Type.Arg).Types;
+
+        if (rets.size() > 0) {
+            result += TypeToString(rets.get(0)).replaceAll("PLACEHOLDER", "*");
+            for (int i = 1; i < rets.size(); i++) {
+                result += ", " + TypeToString(rets.get(i)).replaceAll("PLACEHOLDER", "*");
+            }
+
+            if (args.size() > 0)
+                result += ", ";
+        }
+
+        if (args.size() > 0) {
+            result += TypeToString(args.get(0)).replaceAll("PLACEHOLDER", "");
+            for (int i = 1; i < args.size(); i++) {
+                result += ", " + TypeToString(args.get(i)).replaceAll("PLACEHOLDER", "");
+            }
+        }
+        result += ")";
+        return result;
+    }
+
+    public static String TypeToString(TupleType Type) {
+        return "char *PLACEHOLDER";
+    }
+
+    public static String TypeToString(BaseType Type) {
+        return TypeEnumToString(Type.Type);
     }
 
     public String Compile(FloatNode Node) {
@@ -318,30 +320,18 @@ public class ToCCompiler {
                 }
             }
             result += "{";
-            result += "void **TEMP = " + Compile(Node.Value) + ";"; // at this point we have a void** TEMP_x, that represents a single depth tuple
+            var tuple_name = "T_TEMP";
+            result += Declare(tuple_name, new TupleType()) + " = " + Compile(Node.Value) + ";"; // at this point we have a char* TEMP_x, that represents our tuple
             for (int i = 0; i < Node.Names.size(); i++) {
-                result += Node.Names.get(i);
-                if (Node.Types.get(i) instanceof TupleType) {
-                    var flat = Utils.FLATTEN(Node.Types.get(i));
-                    result += " = ({(void *[]){";
-                    for (int j = 0; j < flat.Types.size(); j++) {
-                        result += "TEMP[" + i + "],";
-                        i++;
-                    }
-                    result += "};});";
-                } else {
-                    result += " = (*((";
-                    result += TypeToString(Node.Types.get(i)).replaceAll("PLACEHOLDER", ""); // gets just the type, with no name
-                    result += "*)(TEMP[";
-                    result += i;
-                    result += "])));";
-                }
+                result += Node.Names.get(i) + " = " + IndexTuple(tuple_name, Node.Types, i) + ";";
             }
+            result += "ass_free(" + tuple_name + ");"; // cleanup the tuple itself
             result += "}";
         }
 
         System.out.println("Assign: " + result);
         return result;
+
     }
 
     public String Compile(TrainNode Node) {
@@ -451,59 +441,29 @@ public class ToCCompiler {
     }
 
     private String Declare(String name, FNNType type) {
-        // System.out.println("Declare: " + name + " : " + type);
-        String result = "";
-        if (type instanceof BaseType) { // TODO: this is the same, look at it again
-            result += TypeToString((BaseType) type).replaceAll("PLACEHOLDER", name);
-        } else if (type instanceof FuncType) {
-            result += TypeToString((FuncType) type).replaceAll("PLACEHOLDER", name);
-        } else if (type instanceof ArrType) {
-            result += TypeToString((ArrType) type).replaceAll("PLACEHOLDER", name);
-        } else if (type instanceof TupleType) {
-            result += "void **";
-            result += name;
-        } else {
-            Utils.ERREXIT("IDK BIG ERROR");
-            return null; // unreachable
-        }
-        return result;
+        return TypeToString(type).replaceAll("PLACEHOLDER", name);
     }
 
     public String Compile(TupleNode Node) {
-        Utils.ASSERT(Node.Type instanceof TupleType, "Type of tuple node isn't a tuple type guh"); // TODO: maybe redundant tbh
-        var real_type = (TupleType) Node.Type;
-        var type = Utils.FLATTEN(real_type); // we implement all tuples flatly
+        var types = Utils.AS_LIST(Node.Type);
 
-        if (type.Types.size() == 1) {
+        if (types.size() == 1) {
             return this.Compile(Node.Exprs.get(0)); // single tuples are just ignored outside the type system
         }
 
         String result = "({";
-        for (int i = 0; i < type.Types.size(); i++) {
-            result += Declare("T" + i, type.Types.get(i)) + ";";
+        result += "int T_SIZE = sizeof(" + TypeToString(types.get(0)).replaceAll("PLACEHOLDER", "") + ")";
+        for (int i = 1; i < types.size(); i++) {
+            result += " + sizeof(" + TypeToString(types.get(i)).replaceAll("PLACEHOLDER", "") + ")";
+        }
+        result += ";";
+        result += "char* TUPLE = ass_malloc(T_SIZE);";
+
+        for (int i = 0; i < types.size(); i++) {
+            result += IndexTuple("TUPLE", types, i) + " = " + this.Compile(Node.Exprs.get(i)) + ";";
         }
 
-        int tuple_num = 0;
-        for (int i = 0; i < real_type.Types.size(); i++) {
-            if (real_type.Types.get(i) instanceof TupleType) {
-                result += "void** TEMP" + tuple_num + ";";
-                result += "TEMP" + tuple_num + " = " + Compile(Node.Exprs.get(i)) + ";";
-                var flat = Utils.FLATTEN(real_type.Types.get(i)); // since they're all flat, we assume the returned tuple is flat too
-                for (int j = 0; j < flat.Types.size(); j++) {
-                    result += "/*" + flat.Types.get(j) + "*/";
-                    result += "T" + i + " = (*((" + TypeToString(flat.Types.get(j)).replaceAll("PLACEHOLDER", "*") + ")(TEMP" + tuple_num + "[" + j + "])));";
-                    i++;
-                }
-            } else {
-                result += "T" + i + " = " + Compile(Node.Exprs.get(i)) + ";";
-            }
-        }
-
-        result += "(void*[]){";
-        for (int i = 0; i < type.Types.size(); i++) {
-            result += "&T" + i + ",";
-        }
-        result += "};";
+        result += "TUPLE;";
 
         result += "})";
         return result;
@@ -622,6 +582,7 @@ public class ToCCompiler {
             for (int i = 0; i < ((TupleType) Type).Types.size(); i++) { // TODO: figure out where tuples should be stored, cuz I think stmt-expressions might clean the scope on exit...
                 result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), ((TupleType) Type).Types.get(i)) + ";";
             }
+            result += "ass_free(" + Name + ");";
             return result;
         } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.NN) {
             return "(model_del(" + Name + "));";
@@ -630,7 +591,16 @@ public class ToCCompiler {
     }
 
     public String IndexTuple(String Name, TupleType Type, int i) {
-        return "(*((" + Type.Types.get(i) + "*)(" + Name + "[" + i + "])))";
+        return IndexTuple(Name, Type.Types, i);
+    }
+
+    public String IndexTuple(String Name, List<FNNType> Types, int index) {
+        var res = "(*((" + TypeToString(Types.get(index)).replaceAll("PLACEHOLDER", "*") + ")(&(" + Name + "[0+"; // interprets the pointer as a pointer to whatever type we have
+        for (int i = 0; i < index; i++) {
+            res += "sizeof(" + TypeToString(Types.get(i)).replaceAll("PLACEHOLDER", "") + ")+";
+        }
+        res += "0]))))";
+        return res;
     }
 
     public String LengthOfArr(String Name) {

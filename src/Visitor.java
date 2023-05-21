@@ -57,7 +57,8 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
         var result = new TypeListNode();
         if (ctx == null || ctx.children == null)
-            return result; // TODO: apparently we need to check this ain't null, so we need to do that everywhere else lmao
+            return result; // TODO: apparently we need to check this ain't null, so we need to do that
+                           // everywhere else lmao
 
         for (var antlr_type_node : ctx.children) {
             var ast_type_node = this.visit(antlr_type_node);
@@ -144,54 +145,26 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var value = this.visit(ctx.expr_in_assign);
         Utils.ASSERT(value instanceof ExprNode, "Right side of assignment was not an expression: " + ctx.expr_in_assign.getStart() + " to " + ctx.expr_in_assign.getStop());
         result.Value = (ExprNode) value;
-        if (ctx.ID().size() > 1) {
-            Utils.ASSERT(result.Value.Type instanceof TupleType, "Trying to match non tuple type, " + result.Value.Type + ", to multiple names, on line: " + ctx.start.getLine());
-            var tuple = (TupleType) result.Value.Type;
-            Utils.ASSERT((tuple.Types.size() <= ctx.ID().size()), "Match failure in assign, mismatched amount");
-            Queue<FNNType> right = new LinkedList<>(tuple.Types);
-            Queue<FNNType> left = new LinkedList<>();
-            if (ctx.ID().size() != tuple.Types.size()) {
-                boolean did_we_unpack_tuples = false; // TODO: shouldn't we use this?
-                while (left.size() + right.size() != ctx.ID().size()) {
-                    var current = right.remove();
-                    if (!(current instanceof TupleType)) {
-                        left.add(current);
-                    } else {
-                        did_we_unpack_tuples = true;
-                        for (var t : ((TupleType) current).Types) {
-                            left.add(t);
-                        }
-                    }
-                    if (right.size() == 0) {
-                        Utils.ASSERT(did_we_unpack_tuples, "Number of variables do not match number of elements in tuple" + ctx.getStart() + " : " + ctx.getStop());
-                        var temp = right;
-                        right = left;
-                        left = temp;
-                    }
-                }
-            }
-            int i = 0;
-            while (left.size() > 0) {
-                var name = ctx.ID(i++).getText();
-                var type = left.remove();
-                result.Types.add(type);
-                result.Names.add(name);
-                Scopes.peek().put(name, type);
-            }
-            while (right.size() > 0) {
-                var name = ctx.ID(i++).getText();
-                var type = right.remove();
-                result.Types.add(type);
-                result.Names.add(name);
-                Scopes.peek().put(name, type);
-            }
-        }
+        result.Value.Type = Utils.TRY_UNWRAP(result.Value.Type); // redundant? we should probably specify a single place that's responsible for the unwrapping
 
-        else {
+        if (ctx.ID().size() > 1) {
+            Utils.ASSERT(result.Value.Type instanceof TupleType, "Attempt to assign non-tuple type: " + result.Value.Type + ", to multiple names, on line: " + ctx.getStart().getLine());
+            var t_type = (TupleType) result.Value.Type;
+            Utils.ASSERT(ctx.ID().size() == t_type.Types.size(), "Attempt to assign " + t_type.Types.size() + " tuple to " + ctx.ID().size() + " names, on line: " + ctx.getStart().getLine());
+
+            for (int i = 0; i < ctx.ID().size(); i++) {
+                var name = ctx.ID(i).getText();
+                var type = t_type.Types.get(i);
+                result.Types.add(type);
+                result.Names.add(name);
+                Scopes.peek().put(name, type);
+            }
+        } else {
             var name = ctx.ID(0).getText();
-            result.Types.add(result.Value.Type);
+            var type = result.Value.Type;
+            result.Types.add(type);
             result.Names.add(name);
-            Scopes.peek().put(name, result.Value.Type);
+            Scopes.peek().put(name, type);
         }
         return result;
     }

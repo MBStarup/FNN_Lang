@@ -7,6 +7,7 @@ public class Utils {
         while ((caller = Thread.currentThread().getStackTrace()[i]).getFileName().startsWith("Utils")) {
             ++i;
         } // Skips the errors from this file, and prints where the ERREXIT was called
+          // (fx. so it doesn't say the err is from the ASSERT method in this file, but where that was called originally)
         System.err.print("ERR (");
         System.err.print(caller.getFileName());
         System.err.print(":");
@@ -22,19 +23,28 @@ public class Utils {
     }
 
     static FNNType TRY_UNWRAP(FNNType type) {
-        if (type == null) {
-            return null;
-        }
         if (!(type instanceof TupleType)) {
             return type;
         }
+
         if (((TupleType) type).Types.size() != 1) {
             return type;
         }
+
         return TRY_UNWRAP(((TupleType) type).Types.get(0));
     }
 
-    // TODO: make non-recursive with stack if needed
+    static List<FNNType> AS_LIST(FNNType type) {
+        var t = Utils.TRY_UNWRAP(type);
+        if (t instanceof TupleType) {
+            return ((TupleType) t).Types;
+        }
+
+        var res = new Vector<FNNType>();
+        res.add(type);
+        return res;
+    }
+
     static TupleType FLATTEN(FNNType Type) {
         var result = new TupleType();
         if (Type instanceof TupleType) {

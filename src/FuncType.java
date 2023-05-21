@@ -1,6 +1,6 @@
 public class FuncType extends FNNType {
-    TupleType Arg;
-    TupleType Ret;
+    TupleType Arg = new TupleType();
+    TupleType Ret = new TupleType();
 
     @Override
     public String toString() {
@@ -14,9 +14,6 @@ public class FuncType extends FNNType {
 
     @Override
     public boolean equals(Object other) {
-        if (other == null)
-            return false;
-
         if (other instanceof TupleType)
             return other.equals(this);
 
