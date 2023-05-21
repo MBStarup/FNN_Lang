@@ -119,12 +119,12 @@ int main(int argc, char const *argv[])
 
 /* paste for print
 ;
-    double **actual_results = ass_malloc(sizeof(double *) * (m.layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
+    double **actual_results = ass_malloc(sizeof(double *) * (n.layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)
     double **results = &(actual_results[1]);                                       // offset the indexing of results by one, basically creating a "-1" index, this way the indexing still matches the layers[]
     // results[-1] doesn't need a new allocated buffer, since it's just gonna be pointing to already allocated memory in data[]
-    for (int layer = 0; layer < m.layer_amount; layer++)
+    for (int layer = 0; layer < n.layer_amount; layer++)
     {
-        results[layer] = ass_malloc(sizeof(double) * m.layers[layer].out);
+        results[layer] = ass_malloc(sizeof(double) * n.layers[layer].out);
     }
     // print examples to look at
     for (int printed_example = 0; printed_example < 5; printed_example++)
@@ -134,13 +134,13 @@ int main(int argc, char const *argv[])
 
         // forward propegate
         results[-1] = data_in[printed_example];
-        for (int layer = 0; layer < m.layer_amount; layer++)
+        for (int layer = 0; layer < n.layer_amount; layer++)
         {
             {
-                layer_apply(m.layers[layer], results[layer - 1], results[layer]);
-                for (int output = 0; output < m.layers[layer].out; output++)
+                layer_apply(n.layers[layer], results[layer - 1], results[layer]);
+                for (int output = 0; output < n.layers[layer].out; output++)
                 {
-                    m.layers[layer].activation(&results[layer][output], results[layer][output]);
+                    n.layers[layer].activation(&results[layer][output], results[layer][output]);
                 }
             }
         }
@@ -148,12 +148,12 @@ int main(int argc, char const *argv[])
         // softmax((layers[layer_amount - 1].out, results[layer_amount - 1], results[layer_amount - 1]);
 
         printf("Results data nr. (%d):\n", printed_example);
-        print_double_arr(m.layers[m.layer_amount - 1].out, m.layers[m.layer_amount - 1].out, results[m.layer_amount - 1]);
+        print_double_arr(n.layers[n.layer_amount - 1].out, n.layers[n.layer_amount - 1].out, results[n.layer_amount - 1]);
         printf("\n____________________________________\n");
     }
     // clean up result buffers
     // results[-1] doesn't need to be cleaned, as it's just a pointer to part of the data[] array
-    for (int result = 0; result < m.layer_amount; result++)
+    for (int result = 0; result < n.layer_amount; result++)
     {
         ass_free(results[result]);
     }

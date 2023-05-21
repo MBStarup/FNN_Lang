@@ -1,4 +1,3 @@
 public enum TypeEnum {
-    Int(), Float(), Layer(), Model(), String();
-
+    Int(), Float(), Layer(), NN(), String();
 }

@@ -1,7 +1,7 @@
 public class TrainNode extends StmtNode {
+    public EvalNode NN;
     public ExprNode Epochs;
-    // public ExprNode BatchSize;
-    public EvalNode Model;
-    public ExprNode Expected;
     public ExprNode Input;
+    public ExprNode Expected;
+    public ExprNode Rate;
 }

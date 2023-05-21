@@ -1,2 +1,2 @@
-public class StmtNode extends AstNode {
+public abstract class StmtNode extends AstNode {
 }
