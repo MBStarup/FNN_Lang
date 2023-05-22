@@ -219,4 +219,48 @@ public class TestToCCompiler {
         evalNode.Type = new FuncType();
         assertEquals("(*variable)", CCompiler.Compile(evalNode));
     }
+    @Test
+    public void testCompileTrainNode(){
+        ToCCompiler CCompiler = Mockito.mock(ToCCompiler.class);
+        TrainNode trainNode = new TrainNode();
+        trainNode.Epochs = new ExprNode();
+        trainNode.Expected = new ExprNode();
+        trainNode.Input = new ExprNode();
+        trainNode.NN = new EvalNode();
+        trainNode.Rate = new ExprNode();
+        when(CCompiler.Compile(any(ExprNode.class))).thenReturn("Expression");
+        when(CCompiler.Compile(any(EvalNode.class))).thenReturn("NN");
+        when(CCompiler.Compile(any(TrainNode.class))).thenCallRealMethod();
+        assertEquals("(train_model(NN,Expression,Expression,Expression,Expression))", CCompiler.Compile(trainNode));
+    }
+    @Test
+    public void testCompileTestNode(){
+        ToCCompiler CCompiler = Mockito.mock(ToCCompiler.class);
+        when(CCompiler.Compile(any(ExprNode.class))).thenReturn("Expression");
+        when(CCompiler.Compile(any(TestNode.class))).thenCallRealMethod();
+        TestNode testNode = new TestNode();
+        testNode.In = new ExprNode();
+        testNode.NN = new ExprNode();
+        testNode.Out = new ExprNode();
+        assertEquals("(test_model(Expression,Expression,Expression))", CCompiler.Compile(testNode));
+    }
+    @Test
+    public void testCompileExternNodeNotFunc(){
+        ExternNode externNode = new ExternNode();
+        externNode.Name = "ExternNode";
+        externNode.Type = new BaseType(TypeEnum.Int);
+        assertEquals("int ExternNode = E_ExternNode", CCompiler.Compile(externNode));
+    }
+    @Test
+    public void testCompileExternNodeFunc(){
+        ExternNode externNode = new ExternNode();
+        externNode.Name = "ExternNode";
+        FuncType func = new FuncType();
+        func.Arg = new TupleType();
+        func.Arg.Types.add(new BaseType(TypeEnum.Int));
+        func.Ret = new TupleType();
+        func.Ret.Types.add(new BaseType(TypeEnum.Int));
+        externNode.Type = func;
+        assertEquals("void (*ExternNode)(int *,int ) = &E_ExternNode", CCompiler.Compile(externNode));
+    }
 }
