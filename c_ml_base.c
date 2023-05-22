@@ -594,12 +594,11 @@ double test_model(model_T mdl, double **in, double **out)
 // largest_elem_size is the amount of chars in hte largest single element in the data, without the comma. Used for buffer allocation.
 char *E_load_csv(char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size)
 {
-    double **expected_outputs = (double **)(&(((int *)ass_malloc(sizeof(int) + sizeof(double *) * data_amount))[1])); // freed by caller ??
-    double **input_data = (double **)(&(((int *)ass_malloc(sizeof(int) + sizeof(double *) * data_amount))[1]));       // freed by caller ??
-    ((int *)(expected_outputs))[-1] = data_amount;
-    ((int *)(input_data))[-1] = data_amount;
+    double **expected_outputs = ass_malloc_fnn_arr(sizeof(double *), data_amount);
+    double **input_data = ass_malloc_fnn_arr(sizeof(double *), data_amount);
 
     DEBUG("%s\n", filepath);
+    DEBUG("%d\n", data_amount);
     FILE *fptr = fopen(filepath, "r");
     int file_buffer_size = (largest_elem_size + 1) * (input_size + 1); // make the buffer just big enough to hold a single line of well formatted data: input size (plus one for the label) times the size of the largest elem, plus 1 for comma, like "xxx,"
     char *file_buffer = ass_malloc(sizeof(char) * file_buffer_size);
@@ -608,11 +607,8 @@ char *E_load_csv(char *filepath, int output_size, int input_size, int data_amoun
     fgets(file_buffer, file_buffer_size, fptr);
     for (int i = 0; i < data_amount; i++)
     {
-        int size = sizeof(int) + sizeof(double) * output_size;
-        (expected_outputs)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * output_size))[1])); // freed by called I guess, hmmmmmm
-        (input_data)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * input_size))[1]));        // freed by called I guess, hmmmmmm
-        ((int *)((expected_outputs)[i]))[-1] = output_size;
-        ((int *)((input_data)[i]))[-1] = input_size;
+        expected_outputs[i] = ass_malloc_fnn_arr(sizeof(double), output_size);
+        input_data[i] = ass_malloc_fnn_arr(sizeof(double), input_size);
 
         char *line = fgets(file_buffer, file_buffer_size, fptr);
         assert(line != NULL); // Ran out of lines when reading training data, make sure data_amount <= the amount of lines of atual data in the csv
@@ -637,8 +633,8 @@ char *E_load_csv(char *filepath, int output_size, int input_size, int data_amoun
     ass_free(file_buffer);
 
     char *res = ass_malloc(sizeof(double **) * 2);
-    (*((double ***)&res[0])) = expected_outputs;
-    (*((double ***)&res[sizeof(double **)])) = input_data;
+    (*((double ***)(&(res[0])))) = input_data;
+    (*((double ***)(&(res[sizeof(double **)])))) = expected_outputs;
     return res;
 }
 

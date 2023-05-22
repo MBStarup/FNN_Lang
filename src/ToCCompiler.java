@@ -534,13 +534,16 @@ public class ToCCompiler {
     private String Copy(String name, FNNType Type) {
         var type = Utils.TRY_UNWRAP(Type);
         if (type instanceof ArrType) {
+            ++indexNum;
+            var index = "INDEX" + indexNum;
             var res = "({";
-            res += Declare("COPY", type) + " = ass_malloc(sizof(" + TypeToString(((ArrType) type).Type).replaceAll("PLACEHOLDER", "") + ") * " + LengthOfArr(name) + ");";
-            res += "for (size_t INDEX = 0; INDEX < " + LengthOfArr(name) + "; INDEX++){";
-            res += "COPY[INDEX] = " + Copy(name + "[INDEX]", ((ArrType) type).Type) + ";";
+            res += Declare("COPY", type) + " = ass_malloc_fnn_arr(sizeof(" + TypeToString(((ArrType) type).Type).replaceAll("PLACEHOLDER", "") + "), " + LengthOfArr(name) + ");";
+            res += "for (int " + index + " = 0; " + index + " < " + LengthOfArr(name) + "; " + index + "++){";
+            res += "COPY[" + index + "] = " + Copy(name + "[" + index + "]", ((ArrType) type).Type) + ";";
             res += "}";
             res += "COPY;";
             res += "})";
+            --indexNum;
             return res;
         }
         if (type instanceof TupleType) {

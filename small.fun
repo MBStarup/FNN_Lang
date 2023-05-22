@@ -7,8 +7,8 @@
 (in): 784 
 (out): 10 
 
-(train_data_out train_data_in): load_csv!("mnist_train.csv" out in 130 6) 
-(test_data_out test_data_in): load_csv!("mnist_test.csv" out in 100 6) 
+(train_data_in train_data_out): load_csv!("mnist_train.csv" out in 1300 6)
+(test_data_in test_data_out): load_csv!("mnist_test.csv" out in 1000 6)
 
 (sigmoid): (in:FLT) -> { RETURN 1.0/(1.0 + ((2.71828)^(-in))) }
 
