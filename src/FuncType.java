@@ -1,11 +1,15 @@
+import java.util.*;
+
 public class FuncType extends FNNType {
-    TupleType Arg = new TupleType();
+    List<FNNType> Args = new Vector<>();
     TupleType Ret = new TupleType();
 
     @Override
     public String toString() {
+        var arg_tuple = new TupleType();
+        arg_tuple.Types = Args;
         String result = "(";
-        result += Arg.toString();
+        result += arg_tuple.toString();
         result += ") -> (";
         result += Ret.toString();
         result += ")";
@@ -18,7 +22,15 @@ public class FuncType extends FNNType {
             return other.equals(this);
 
         if (other instanceof FuncType) {
-            return ((FuncType) other).Arg.equals(this.Arg) && ((FuncType) other).Ret.equals(this.Ret);
+            var f_other = (FuncType) other;
+            if (((FuncType) other).Ret.equals(this.Ret)) {
+                for (int i = 0; i < Args.size(); i++) {
+                    if (!(Args.get(i).equals(f_other.Args.get(i))))
+                        return false;
+                }
+                return true;
+            }
+            return false;
         }
 
         return false;

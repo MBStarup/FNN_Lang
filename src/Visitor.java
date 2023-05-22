@@ -217,7 +217,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var type = new FuncType();
         rets.Types.add(((ExprNode) ret_expr).Type); // cringe and cringe
         type.Ret = rets;
-        type.Arg = params;
+        type.Args = params.Types;
         result.Type = type;
 
         result.Result = (ExprNode) ret_expr;
@@ -305,7 +305,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         float_tuple.Types.add(new BaseType(TypeEnum.Float));
 
         var activation_type = new FuncType(); // Define (FLT) -> (FLT), to compare equality with
-        activation_type.Arg = float_tuple;
+        activation_type.Args = float_tuple.Types;
         activation_type.Ret = float_tuple;
 
         var activation_expr = this.visit(ctx.activation);
@@ -411,7 +411,10 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             arg_type.Types.add(expr.Type);
         }
 
-        Utils.ASSERT(arg_type.equals(func_type.Arg), "Types in function call doesn't match, expected: " + func_type.Arg + ", got: " + arg_type);
+        var exp_arg_type = new TupleType();
+        exp_arg_type.Types = func_type.Args;
+
+        Utils.ASSERT(arg_type.equals(exp_arg_type), "Types in function call doesn't match, expected: " + exp_arg_type + ", got: " + arg_type);
         result.Args = (((ExprListNode) args_node).Exprs);
 
         result.Type = Utils.TRY_UNWRAP(((FuncType) result.Function.Type).Ret);
@@ -479,11 +482,9 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         type.Ret = ret_tuple;
         var args = this.visit(ctx.args);
         Utils.ASSERT(args instanceof TypeListNode, "Specificed argumettypes not actually a list of types somehow");
-        TupleType arg_tuple = new TupleType();
         for (var arg_type : ((TypeListNode) args).Types) {
-            arg_tuple.Types.add(arg_type.Type);
+            type.Args.add(arg_type.Type);
         }
-        type.Arg = arg_tuple;
         result.Type = Utils.TRY_UNWRAP(type);
         return result;
     }

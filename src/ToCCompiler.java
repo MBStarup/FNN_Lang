@@ -1,5 +1,7 @@
 import java.util.*;
 
+import javax.naming.spi.DirStateFactory.Result;
+
 public class ToCCompiler {
     // public String Compile(AstNode Node) {
     // System.err.println("Unexpected nodes: " + Node.getClass() + " while trying to
@@ -197,20 +199,21 @@ public class ToCCompiler {
 
     public static String TypeToString(FuncType Type) {
         String result = "";
-        result += "void (*PLACEHOLDER)("; // all funcitons return void
+        // result += "void (*PLACEHOLDER)("; // all funcitons return void
 
-        var rets = Utils.FLATTEN(Type.Ret).Types;
-        var args = Utils.FLATTEN(Type.Arg).Types;
+        var rets = Utils.TRY_UNWRAP(Type.Ret);
+        result += TypeToString(rets).replaceAll("PLACEHOLDER", "") + " (*PLACEHOLDER)(";
+        var args = Type.Args;
 
-        if (rets.size() > 0) {
-            result += TypeToString(rets.get(0)).replaceAll("PLACEHOLDER", "*");
-            for (int i = 1; i < rets.size(); i++) {
-                result += ", " + TypeToString(rets.get(i)).replaceAll("PLACEHOLDER", "*");
-            }
+        // if (rets.size() > 0) {
+        // result += TypeToString(rets.get(0)).replaceAll("PLACEHOLDER", "*");
+        // for (int i = 1; i < rets.size(); i++) {
+        // result += ", " + TypeToString(rets.get(i)).replaceAll("PLACEHOLDER", "*");
+        // }
 
-            if (args.size() > 0)
-                result += ", ";
-        }
+        // if (args.size() > 0)
+        // result += ", ";
+        // }
 
         if (args.size() > 0) {
             result += TypeToString(args.get(0)).replaceAll("PLACEHOLDER", "");
@@ -367,76 +370,17 @@ public class ToCCompiler {
     }
 
     public String Compile(CallNode Node) {
-        String result = "";
-        int t_count = 0;
-        var ret_types = Utils.FLATTEN(Node.Type).Types;
-        result += "({";
-        for (int i = 0; i < Node.Args.size(); i++) { // in case of tuples, predeclare variables for each element in the tuple, as we don't pass tuples to functions. This does not need to be recursive since in c land we flatten all nested tuples to depth 1
-            if (Node.Args.get(i).Type instanceof TupleType) {
-                for (FNNType type : ((TupleType) Node.Args.get(i).Type).Types) {
-                    Utils.ASSERT(!(type instanceof TupleType), "Multi depth tuple in c impl");
-                    result += Declare("ARGT_" + t_count++, type) + ";";
-                }
-            }
-        }
-
-        t_count = 0;
-        for (int i = 0; i < Node.Args.size(); i++) {
-            if (Node.Args.get(i).Type instanceof TupleType) {
-                result += "{";
-                result += "void** T = " + Compile(Node.Args.get(i)) + ";";
-                int j = 0;
-                for (FNNType type : ((TupleType) Node.Args.get(i).Type).Types) {
-                    Utils.ASSERT(!(type instanceof TupleType), "Multi depth tuple in c impl");
-                    result += "ARGT_" + t_count++ + "= (*((" + TypeToString(type).replaceAll("PLACEHOLDER", "") + " *)(T[" + j++ + "])));";
-                }
-                result += "}";
-            }
-        }
-
-        for (int i = 0; i < ret_types.size(); i++) {
-            result += Declare("TEMP" + i, ret_types.get(i)) + ";";
-        }
-
+        String result = "(";
         result += Compile(Node.Function);
         result += "(";
-        if (ret_types.size() > 0) {
-            result += "&TEMP0";
-            for (int i = 1; i < ret_types.size(); i++) {
+        if (Node.Args.size() > 0) {
+            result += Compile(Node.Args.get(0));
+            for (int i = 1; i < Node.Args.size(); i++) {
                 result += ",";
-                result += "&TEMP" + i;
-            }
-        }
-
-        t_count = 0;
-        for (int i = 0; i < Node.Args.size(); i++) {
-            result += ",";
-            if (Node.Args.get(i).Type instanceof TupleType) {
-                int size = ((TupleType) Node.Args.get(i).Type).Types.size();
-                if (size > 0) {
-                    result += "ARGT_" + t_count++;
-                    for (int j = 1; j < size; j++) {
-                        result += ", ARGT_" + t_count++;
-                    }
-                }
-            } else {
                 result += Compile(Node.Args.get(i));
             }
         }
-        result += ");";
-        if (ret_types.size() == 1) {
-            result += "TEMP0";
-        }
-        // TODO: generalize this with the same exact hard coded shit in TupleNode...
-        if (ret_types.size() > 1) {
-            result += "(void*[]){&TEMP0";
-            for (int i = 1; i < ret_types.size(); i++) {
-                result += ",";
-                result += "&TEMP" + i;
-            }
-            result += "}";
-        }
-        result += ";})";
+        result += "))";
         return result;
     }
 
@@ -519,36 +463,47 @@ public class ToCCompiler {
         Utils.ASSERT(Node.Type instanceof FuncType, "Trying to declare function with non function type, compiler shit the bed");
         var type = (FuncType) Node.Type;
 
-        var rets = Utils.FLATTEN(type.Ret);
+        var ret = Utils.TRY_UNWRAP(type.Ret);
         String result = "({";
-        result += "void ";
-        result += "FUNC" + func_num;
-        result += "(";
-        if (rets.Types.size() > 0) {
-            result += Declare("*RET" + 0, rets.Types.get(0));
-            for (int i = 1; i < rets.Types.size(); i++) {
-                result += ",";
-                result += Declare("*RET" + i, rets.Types.get(i));
-            }
-        }
+        result += TypeToString(ret).replaceAll("PLACEHOLDER", "") + "FUNC" + func_num + "(";
 
         Scopes.push(new HashMap<>()); // New scope for functions
-        for (int i = 0; i < type.Arg.Types.size(); i++) {
-            result += ",";
-            result += tupleParamDelcare(Node.ParamNames.get(i), type.Arg.Types.get(i));
-            Scopes.peek().put(Node.ParamNames.get(i), type.Arg.Types.get(i));
+        if (type.Args.size() > 0) {
+            var arg_name = Node.ParamNames.get(0);
+            var arg_type = Utils.TRY_UNWRAP(type.Args.get(0));
+            if (HeapAlloced(arg_type)) {
+                result += Declare(arg_name + "_O", arg_type);
+            } else {
+                result += Declare(arg_name, arg_type);
+            }
+            Scopes.peek().put(arg_name, arg_type);
+
+            for (int i = 1; i < type.Args.size(); i++) {
+                arg_name = Node.ParamNames.get(i);
+                arg_type = Utils.TRY_UNWRAP(type.Args.get(i));
+                result += ",";
+                result += Declare(arg_name, arg_type);
+                Scopes.peek().put(arg_name, arg_type);
+            }
         }
         result += ")";
         result += "{";
 
-        for (int i = 0; i < type.Arg.Types.size(); i++) {
-            if (type.Arg.Types.get(i) instanceof TupleType) {
-                result += "void** " + Node.ParamNames.get(i) + " = ((void*[]){" + tupleParamAddrNoTypes(Node.ParamNames.get(i), type.Arg.Types.get(i)) + "});";
+        for (int i = 0; i < type.Args.size(); i++) { // for all the arrays and nns and tuples, we want to copy them to simulate pass-by-value
+            var arg_name = Node.ParamNames.get(0);
+            var arg_type = Utils.TRY_UNWRAP(type.Args.get(0));
+            if (HeapAlloced(arg_type)) {
+                result += Declare(arg_name, arg_type) + " = " + Copy(arg_name + "_O", arg_type) + ";";
             }
         }
 
         result += this.Compile(Node.Stmts);
-        result += "(*RET0)=" + this.Compile(Node.Result) + ";";
+
+        result += Declare("RET_VAL", ret) + " = " + this.Compile(Node.Result) + ";";
+        Scopes.peek().put("RET_VAL", ret); // Put it in the scope for cleanup
+
+        result += Declare("RET_VAL_COPY", ret) + " = " + Copy("RET_VAL", ret) + ";"; // copy it, in case it's heap allocated so we don't return a bad pointer
+        result += "return RET_VAL_COPY;";
 
         result += CleanUp(Scopes.pop()); // Add mem cleanup code to the end of the function for all heap allocated memory in the function
 
@@ -558,6 +513,37 @@ public class ToCCompiler {
 
         return result;
 
+    }
+
+    private String Copy(String name, FNNType Type) {
+        var type = Utils.TRY_UNWRAP(Type);
+        if (type instanceof ArrType) {
+            var res = "({";
+            res += Declare("COPY", type) + " = ass_malloc(sizof(" + TypeToString(((ArrType) type).Type).replaceAll("PLACEHOLDER", "") + ") * " + LengthOfArr(name) + ");";
+            res += "for (size_t INDEX = 0; INDEX < " + LengthOfArr(name) + "; INDEX++){";
+            res += "COPY[INDEX] = " + Copy(name + "[INDEX]", ((ArrType) type).Type) + ";";
+            res += "}";
+            res += "COPY;";
+            res += "})";
+            return res;
+        }
+        if (type instanceof TupleType) {
+            var res = "({";
+            res += Declare("COPY", type) + " = ass_malloc(" + SizeOfTuple((TupleType) type) + ");";
+            for (int i = 0; i < ((TupleType) type).Types.size(); i++) {
+                res += IndexTuple("COPY", (TupleType) type, i) + " = " + Copy(IndexTuple(name, (TupleType) type, i), ((TupleType) type).Types.get(i)) + ";";
+            }
+            res += "COPY;";
+            res += "})";
+            return res;
+        }
+        if (type.equals(new BaseType(TypeEnum.NN))) {
+            var res = "({";
+            res += "model_copy(" + name + ");";
+            res += "})";
+            return res;
+        }
+        return "(" + name + ")"; // not heap allocated data
     }
 
     public String CleanUp(Map<String, FNNType> Scope) {
@@ -607,4 +593,24 @@ public class ToCCompiler {
         return "((int *)" + Name + ")[-1]";
     }
 
+    public String SizeOfTuple(TupleType type) {
+        var result = "0";
+
+        for (var t : type.Types) {
+            result += "+sizeof(" + TypeToString(t).replaceAll("PLACEHOLDER", "") + ")";
+        }
+
+        return result;
+    }
+
+    public boolean HeapAlloced(FNNType type) {
+        var t = Utils.TRY_UNWRAP(type);
+        if (t instanceof TupleType)
+            return true;
+        if (t instanceof ArrType)
+            return true;
+        if (t instanceof BaseType)
+            return t.equals(new BaseType(TypeEnum.NN));
+        return false;
+    }
 }

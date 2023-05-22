@@ -59,8 +59,8 @@ typedef struct
     int out;
     double *weights;
     double *biases;
-    void (*activation)(double *, double);            // Fnn calling convention
-    void (*activation_derivative)(double *, double); // Fnn calling convention
+    double (*activation)(double);
+    double (*activation_derivative)(double);
 } layer_T;
 
 typedef struct
@@ -204,7 +204,7 @@ void shuffle_arr(int arr_length, int elem_size, void *arr)
     ass_free(temp);
 }
 
-layer_T layer_new(int in, int out, void (*a)(double *, double), void (*a_derivative)(double *, double))
+layer_T layer_new(int in, int out, double (*a)(double), double (*a_derivative)(double))
 {
     layer_T res;
 
@@ -238,6 +238,31 @@ void model_del(model_T m)
         layer_del(m.layers[l]);
     }
     ass_free(m.layers);
+}
+
+layer_T layer_copy(layer_T l)
+{
+    layer_T copy;
+    copy.activation = l.activation;
+    copy.activation_derivative = l.activation_derivative;
+    copy.out = l.out;
+    copy.in = l.in;
+    copy.biases = ass_malloc(sizeof(double) * l.out);
+    memcpy(copy.biases, l.biases, sizeof(double) * l.out);
+    copy.weights = ass_malloc(sizeof(double) * l.out * l.in);
+    memcpy(copy.weights, l.weights, sizeof(double) * l.out * l.in);
+}
+
+model_T model_copy(model_T m)
+{
+    model_T copy;
+    copy.layer_amount = m.layer_amount;
+    copy.layers = ass_malloc(sizeof(layer_T) * m.layer_amount);
+    for (size_t i = 0; i < m.layer_amount; i++)
+    {
+        copy.layers[i] = layer_copy(m.layers[i]);
+    }
+    return copy;
 }
 
 // Calculates the weigted sum, does not apply any activation function
@@ -349,10 +374,10 @@ double derivative_of_sigmoid(double x)
     return sigmoid(x) * (1 - sigmoid(x));
 }
 
-void E_relu(double *ret, double x) { *ret = relu(x); }                                   // FNN calling convention version
-void E_derivative_of_relu(double *ret, double x) { *ret = derivative_of_relu(x); }       // FNN calling convention version
-void E_sigmoid(double *ret, double x) { *ret = sigmoid(x); }                             // FNN calling convention version
-void E_derivative_of_sigmoid(double *ret, double x) { *ret = derivative_of_sigmoid(x); } // FNN calling convention version
+double E_relu(double x) { return relu(x); }                                   // FNN calling convention version
+double E_derivative_of_relu(double x) { return derivative_of_relu(x); }       // FNN calling convention version
+double E_sigmoid(double x) { return sigmoid(x); }                             // FNN calling convention version
+double E_derivative_of_sigmoid(double x) { return derivative_of_sigmoid(x); } // FNN calling convention version
 
 void _train_model(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output, int data_amount)
 {
@@ -394,7 +419,7 @@ void _train_model(model_T model, double learning_rate, int epochs, double **inpu
                 for (int output = 0; output < layers[layer].out; output++)      // apply the activation
                 {
 
-                    layers[layer].activation(&results[layer][output], results[layer][output]);
+                    results[layer][output] = layers[layer].activation(results[layer][output]);
                 }
             }
 
@@ -425,7 +450,7 @@ void _train_model(model_T model, double learning_rate, int epochs, double **inpu
                 for (int out = 0; out < layers[layer].out; out++)
                 {
                     double dout_dz;
-                    layers[layer].activation_derivative(&dout_dz, results[layer][out]); //! <- only real diff I can see is that in the example that works, this uses the "Out" value after activation instead of the "z" value before activation, so why does 3B1B say it's the derivative of the activation of z???
+                    dout_dz = layers[layer].activation_derivative(results[layer][out]); //! <- only real diff I can see is that in the example that works, this uses the "Out" value after activation instead of the "z" value before activation, so why does 3B1B say it's the derivative of the activation of z???
                     for (int input = 0; input < layers[layer].in; input++)
                     {
 
@@ -467,10 +492,10 @@ void train_model(model_T model, double learning_rate, int epochs, double **input
     _train_model(model, learning_rate, epochs, size, input_data, expected_output, size);
 } */
 
-void E_train(int *r, model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
+int E_train(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
 {
     train_model(model, learning_rate, epochs, input_data, expected_output);
-    *r = 0;
+    return 0;
 }
 
 double naive_avg(double *vals, int count)
@@ -535,7 +560,7 @@ double _test_model(model_T model, double **input_data, double **expected_output,
             for (int output = 0; output < layers[layer].out; output++)      // apply the activation
             {
 
-                layers[layer].activation(&results[layer][output], results[layer][output]);
+                results[layer][output] = layers[layer].activation(results[layer][output]);
             }
         }
 
@@ -566,12 +591,12 @@ double test_model(model_T mdl, double **in, double **out)
 
 // Expects the datqa to be formatted as lines in a csv, where the first elem is the correct index in the output categories, and the rest is the input data.
 // largest_elem_size is the amount of chars in hte largest single element in the data, without the comma. Used for buffer allocation.
-void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size)
+char *E_load_csv(char *filepath, int output_size, int input_size, int data_amount, int largest_elem_size)
 {
-    *expected_outputs = (double **)(&(((int *)ass_malloc(sizeof(int) + sizeof(double *) * data_amount))[1])); // freed by caller ??
-    *input_data = (double **)(&(((int *)ass_malloc(sizeof(int) + sizeof(double *) * data_amount))[1]));       // freed by caller ??
-    ((int *)(*expected_outputs))[-1] = data_amount;
-    ((int *)(*input_data))[-1] = data_amount;
+    double **expected_outputs = (double **)(&(((int *)ass_malloc(sizeof(int) + sizeof(double *) * data_amount))[1])); // freed by caller ??
+    double **input_data = (double **)(&(((int *)ass_malloc(sizeof(int) + sizeof(double *) * data_amount))[1]));       // freed by caller ??
+    ((int *)(expected_outputs))[-1] = data_amount;
+    ((int *)(input_data))[-1] = data_amount;
 
     DEBUG("%s\n", filepath);
     FILE *fptr = fopen(filepath, "r");
@@ -583,10 +608,10 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
     for (int i = 0; i < data_amount; i++)
     {
         int size = sizeof(int) + sizeof(double) * output_size;
-        (*expected_outputs)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * output_size))[1])); // freed by called I guess, hmmmmmm
-        (*input_data)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * input_size))[1]));        // freed by called I guess, hmmmmmm
-        ((int *)((*expected_outputs)[i]))[-1] = output_size;
-        ((int *)((*input_data)[i]))[-1] = input_size;
+        (expected_outputs)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * output_size))[1])); // freed by called I guess, hmmmmmm
+        (input_data)[i] = (double *)(&(((int *)ass_malloc(sizeof(int) + sizeof(double) * input_size))[1]));        // freed by called I guess, hmmmmmm
+        ((int *)((expected_outputs)[i]))[-1] = output_size;
+        ((int *)((input_data)[i]))[-1] = input_size;
 
         char *line = fgets(file_buffer, file_buffer_size, fptr);
         assert(line != NULL); // Ran out of lines when reading training data, make sure data_amount <= the amount of lines of atual data in the csv
@@ -595,74 +620,77 @@ void E_load_csv(double ***expected_outputs, double ***input_data, char *filepath
             int label = atoi(token);
             for (int j = 0; j < output_size; j++)
             {
-                (*expected_outputs)[i][j] = 0;
+                (expected_outputs)[i][j] = 0;
             }
 
-            (*expected_outputs)[i][label] = 1;
+            (expected_outputs)[i][label] = 1;
 
             for (int j = 0; j < input_size; j++)
             {
                 token = strtok(NULL, ",");
-                (*input_data)[i][j] = atof(token);
+                (input_data)[i][j] = atof(token);
             }
         }
     }
     fclose(fptr);
     ass_free(file_buffer);
+
+    char *res = ass_malloc(sizeof(double **) * 2);
+    (*((double ***)&res[0])) = expected_outputs;
+    (*((double ***)&res[sizeof(double **)])) = input_data;
+    return res;
 }
 
-void E_print(int *r, char *str)
+int E_print(char *str)
 {
-    *r = 0;
     printf("%s", str);
+    return 0;
 }
-void E_print_int(int *r, int i)
+
+int E_print_int(int i)
 {
-    *r = 0;
     printf("%d", i);
+    return 0;
 }
-void E_print_flt(int *r, double f)
+
+int E_print_flt(double f)
 {
-    *r = 0;
     printf("%lf", f);
+    return 0;
 }
 
-void E_exit(int *r, int a)
+int E_exit(int a)
 {
-    *r = a;
     exit(a);
+    return 0;
 }
 
-void E_getarr(int **r, int a)
+int *E_getarr(int a)
 {
     int *arr = ass_malloc(sizeof(int) + a);
     arr[0] = a;
-    (*r) = (int *)(&(arr[1]));
+    int *r;
+    r = (int *)(&(arr[1]));
     for (int i = 0; i < a; i++)
     {
-        (*r)[i] = 69 + i;
+        r[i] = 69 + i;
     }
+    return r;
 }
 
-void E_new_dense(layer_T *result, int in, int out, void (*a)(double *, double), void (*a_derivative)(double *, double))
-{
-    *result = layer_new(in, out, a, a_derivative);
-}
-
-void E_print_lyr(int *r, layer_T l)
+int E_print_lyr(layer_T l)
 {
     printf("Layer:\n\tIn: %d\n\tOut: %d\n", l.in, l.out);
-    *r = 0;
+    return 0;
 }
 
-void E_exp(double *res, double e)
+double E_exp(double e)
 {
-    *res = exp(e);
+    return exp(e);
 }
 
-void E_tstwithprint(int *r, model_T m, double *image)
+int E_tstwithprint(model_T m, double *image)
 {
-    *r = 0;
     double **actual_results = ass_malloc(sizeof(double *) * (m.layer_amount + 1));
     double **results = &(actual_results[1]);
     for (int layer = 0; layer < m.layer_amount; layer++)
@@ -677,7 +705,7 @@ void E_tstwithprint(int *r, model_T m, double *image)
             layer_apply(m.layers[layer], results[layer - 1], results[layer]);
             for (int output = 0; output < m.layers[layer].out; output++)
             {
-                m.layers[layer].activation(&results[layer][output], results[layer][output]);
+                results[layer][output] = m.layers[layer].activation(results[layer][output]);
             }
         }
     }
@@ -689,4 +717,5 @@ void E_tstwithprint(int *r, model_T m, double *image)
         ass_free(results[result]);
     }
     ass_free(actual_results);
+    return 0;
 }
