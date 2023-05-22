@@ -263,5 +263,4 @@ public class TestToCCompiler {
         externNode.Type = func;
         assertEquals("void (*ExternNode)(int *,int ) = &E_ExternNode", CCompiler.Compile(externNode));
     }
-    
 }
