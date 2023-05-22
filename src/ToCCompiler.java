@@ -324,7 +324,10 @@ public class ToCCompiler {
             }
             result += "{";
             var tuple_name = "T_TEMP";
-            result += Declare(tuple_name, new TupleType()) + " = " + Compile(Node.Value) + ";"; // at this point we have a char* TEMP_x, that represents our tuple
+            var type = new TupleType();
+            type.Types = Node.Types;
+            result += Declare(tuple_name + "_O", type) + " = " + Compile(Node.Value) + ";";
+            result += Declare(tuple_name, type) + " = " + Copy(tuple_name + "_O", type) + ";";
             for (int i = 0; i < Node.Names.size(); i++) {
                 result += Node.Names.get(i) + " = " + IndexTuple(tuple_name, Node.Types, i) + ";";
             }
@@ -404,7 +407,7 @@ public class ToCCompiler {
         result += "char* TUPLE = ass_malloc(T_SIZE);";
 
         for (int i = 0; i < types.size(); i++) {
-            result += IndexTuple("TUPLE", types, i) + " = " + this.Compile(Node.Exprs.get(i)) + ";";
+            result += IndexTuple("TUPLE", types, i) + " = " + Copy(this.Compile(Node.Exprs.get(i)), types.get(i)) + ";";
         }
 
         result += "TUPLE;";
@@ -556,7 +559,6 @@ public class ToCCompiler {
 
     public String CleanUpSingle(String Name, FNNType Type) {
         if (Type instanceof ArrType) {
-
             var index = "INDEX" + indexNum++;
             var result = "for (int " + index + " = 0; " + index + " < " + LengthOfArr(Name) + "; " + index + "++){" + CleanUpSingle(Name + "[" + index + "]", ((ArrType) Type).Type) + "};";
             result += "(ass_free_fnn_arr(" + Name + "));";
@@ -564,11 +566,14 @@ public class ToCCompiler {
             return result;
 
         } else if (Type instanceof TupleType) {
+            System.out.println("CLEANING " + Name + ": " + Type);
             var result = "";
-            for (int i = 0; i < ((TupleType) Type).Types.size(); i++) { // TODO: figure out where tuples should be stored, cuz I think stmt-expressions might clean the scope on exit...
+            for (int i = 0; i < ((TupleType) Type).Types.size(); i++) {
                 result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), ((TupleType) Type).Types.get(i)) + ";";
             }
             result += "ass_free(" + Name + ");";
+            System.out.println(result);
+            System.out.println("------");
             return result;
         } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.NN) {
             return "(model_del(" + Name + "));";

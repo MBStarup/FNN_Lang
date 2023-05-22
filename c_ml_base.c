@@ -251,6 +251,7 @@ layer_T layer_copy(layer_T l)
     memcpy(copy.biases, l.biases, sizeof(double) * l.out);
     copy.weights = ass_malloc(sizeof(double) * l.out * l.in);
     memcpy(copy.weights, l.weights, sizeof(double) * l.out * l.in);
+    return copy;
 }
 
 model_T model_copy(model_T m)
