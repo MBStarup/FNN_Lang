@@ -56,10 +56,9 @@ public class ToCCompiler {
         else if (Node instanceof ExternNode)
             return Compile((ExternNode) Node);
         else {
-            System.err.println("Unexpected StmtNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
-            System.exit(-1);
+            Utils.ERREXIT("Unexpected StmtNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
+            return null; // unreachable
         }
-        return null;
     }
 
     public String Compile(ExprNode Node) {
