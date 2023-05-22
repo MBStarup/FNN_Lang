@@ -345,6 +345,25 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     }
 
     @Override
+    public ArrNode visitArrlit(FNNParser.ArrlitContext ctx) {
+        var result = new ArrNode();
+
+        var exprs = ((ExprListNode) this.visit(ctx.exprs)).Exprs;
+        Utils.ASSERT(exprs.size() > 0, "Empty array litteral, on line: " + ctx.getStart().getLine());
+        var type = exprs.get(0).Type;
+        result.Type = new ArrType(type);
+
+        for (ExprNode expr : exprs) {
+            Utils.ASSERT(expr.Type.equals(type), "Type mismatch in array, got " + expr.Type + ", expected " + type + ", on line: " + ctx.getStart().getLine());
+        }
+
+        result.Exprs = exprs;
+        result.Count = exprs.size();
+
+        return result;
+    }
+
+    @Override
     public TrainNode visitTrain_stmt(FNNParser.Train_stmtContext ctx) {
         System.out.println("Enter: " + Thread.currentThread().getStackTrace()[1].getMethodName());
 

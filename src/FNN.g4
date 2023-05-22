@@ -21,6 +21,7 @@ expr
 	| OPERATOR op = expr																	# unop
 	| ID																					# eval
 	| 'NN' '(' activation = expr derivative = expr ')' '(' sizes = exprlist ')'				# nnlit
+	| '[' exprs = exprlist ']' 																# arrlit
 	| arr = expr '[' index = expr ']'														# arraccess
 	| '(' params = paramdecllist ')' '->' '{' stmts = stmtlist 'RETURN' return = expr '}'	# functionlit
 	| 'TEST' '(' nn = expr in = expr out = expr ')'											# testexpr

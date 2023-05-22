@@ -81,6 +81,8 @@ public class ToCCompiler {
             return Compile((CallNode) Node);
         else if (Node instanceof TupleNode)
             return Compile((TupleNode) Node);
+        else if (Node instanceof ArrNode)
+            return Compile((ArrNode) Node);
         else if (Node instanceof ArrAccessNode)
             return Compile((ArrAccessNode) Node);
         else if (Node instanceof FuncNode)
@@ -337,7 +339,18 @@ public class ToCCompiler {
 
         System.out.println("Assign: " + result);
         return result;
+    }
 
+    public String Compile(ArrNode Node) {
+        String result = "";
+        result += "({";
+        result += Declare("ARR", Node.Type) + " = ass_malloc_fnn_arr(sizeof(" + TypeToString(((ArrType) Node.Type).Type).replaceAll("PLACEHOLDER", "") + "), " + Node.Count + ");";
+        for (int i = 0; i < Node.Exprs.size(); i++) {
+            result += "ARR[" + i + "] = " + this.Compile(Node.Exprs.get(i)) + ";";
+        }
+        result += "ARR;";
+        result += "})";
+        return result;
     }
 
     public String Compile(TrainNode Node) {
