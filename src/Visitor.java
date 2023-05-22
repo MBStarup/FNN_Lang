@@ -371,14 +371,12 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var epochs = this.visit(ctx.epochs);
         Utils.ASSERT(epochs instanceof ExprNode, "Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
         result.Epochs = (ExprNode) epochs;
-        Utils.ASSERT(result.Epochs.Type instanceof BaseType, "Epoch in training must be a single value expression");
-        Utils.ASSERT(((BaseType) result.Epochs.Type).Type == TypeEnum.Int, "Epochs in training must be an integer, on line: " + ctx.epochs.getStart().getLine());
+        Utils.ASSERT(result.Epochs.Type.equals(new BaseType(TypeEnum.Int)), "Epochs in training must be an integer, on line: " + ctx.epochs.getStart().getLine());
 
         var rate = this.visit(ctx.rate);
         Utils.ASSERT(rate instanceof ExprNode, "Rate in training must be an expression, on line: " + ctx.epochs.getStart().getLine());
         result.Rate = (ExprNode) rate;
-        Utils.ASSERT(result.Rate.Type instanceof BaseType, "Rate in training must be a single value expression");
-        Utils.ASSERT(((BaseType) result.Rate.Type).Type == TypeEnum.Float, "Rate in training must be an float, on line: " + ctx.epochs.getStart().getLine());
+        Utils.ASSERT(result.Rate.Type.equals(new BaseType(TypeEnum.Float)), "Rate in training must be an float, on line: " + ctx.epochs.getStart().getLine());
 
         EvalNode nn = null;
         var name = ctx.nn.getText();
@@ -395,20 +393,19 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         }
         Utils.ASSERT(nn != null, "Could not evaluate variable " + name + " on line: " + ctx.getStart().getLine());
         result.NN = nn;
-        Utils.ASSERT(result.NN.Type instanceof BaseType, "NN in training must be a single value expression, on line: " + ctx.nn.getLine());
-        Utils.ASSERT(((BaseType) result.NN.Type).Type == TypeEnum.NN, "Model in training must be an model, on line: " + ctx.nn.getLine());
+        Utils.ASSERT(result.NN.Type.equals(new BaseType(TypeEnum.NN)), "Model in training must be an model, on line: " + ctx.nn.getLine());
+
+        var fltarrarr_type = new ArrType(new ArrType(new BaseType(TypeEnum.Float)));
 
         var inputData = this.visit(ctx.input);
         Utils.ASSERT(inputData instanceof ExprNode, "Input Data in train must be an expression, on line: " + ctx.input.getStart().getLine());
         result.Input = (ExprNode) inputData;
-        Utils.ASSERT(result.Input.Type instanceof ArrType, "Input Data in train must be an array");
-        // TODO: more type checking, I can't be assed
+        Utils.ASSERT(result.Input.Type.equals(fltarrarr_type), "Input Data in train must be of type: " + fltarrarr_type + " not: " + result.Input.Type + ", on line : " + ctx.input.getStart().getLine());
 
         var expectedOutput = this.visit(ctx.expected);
         Utils.ASSERT(expectedOutput instanceof ExprNode, "Expected Output in train must be an expression, on line: " + ctx.expected.getStart().getLine());
         result.Expected = (ExprNode) expectedOutput;
-        Utils.ASSERT(result.Expected.Type instanceof ArrType, "Expected Putput in train must be an array");
-        // TODO: more type checking, I can't be assed
+        Utils.ASSERT(result.Expected.Type.equals(fltarrarr_type), "Expected Putput in train must be of type: " + fltarrarr_type + " not: " + result.Expected.Type + ", on line : " + ctx.expected.getStart().getLine());
 
         return result;
     }
