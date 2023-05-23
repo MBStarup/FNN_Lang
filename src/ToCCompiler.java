@@ -1,7 +1,5 @@
 import java.util.*;
 
-import javax.naming.spi.DirStateFactory.Result;
-
 public class ToCCompiler {
     // public String Compile(AstNode Node) {
     // System.err.println("Unexpected nodes: " + Node.getClass() + " while trying to
@@ -19,10 +17,11 @@ public class ToCCompiler {
     }
 
     public String Compile(ProgramNode Node) {
-        String result = "#include <math.h>\n#include <stdio.h>\n#include \"c_ml_base.c\"\n";
+        String result = "#include <math.h>\n#include <stdio.h>\n#include <time.h>\n#include \"c_ml_base.c\"\n";
         // result += "#define TRAINING_DATA_AMOUNT 12\n";
         Scopes.push(new HashMap<>());
         result += "int main(int argc, char* argv[]){";
+        result += "srand(time(NULL));";
         // result += " double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble
         // *training_expected_output[TRAINING_DATA_AMOUNT];\nload_csv(training_expected_output,
         // OUTPUT_SIZE, training_data_input, INPUT_SIZE, TRAINING_DATA_AMOUNT,
