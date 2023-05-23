@@ -256,11 +256,10 @@ public class TestToCCompiler {
         ExternNode externNode = new ExternNode();
         externNode.Name = "ExternNode";
         FuncType func = new FuncType();
-        func.Arg = new TupleType();
-        func.Arg.Types.add(new BaseType(TypeEnum.Int));
+        func.Args.add(new BaseType(TypeEnum.Int));
         func.Ret = new TupleType();
         func.Ret.Types.add(new BaseType(TypeEnum.Int));
         externNode.Type = func;
-        assertEquals("void (*ExternNode)(int *,int ) = &E_ExternNode", CCompiler.Compile(externNode));
+        assertEquals("int  (*ExternNode)(int ) = &E_ExternNode", CCompiler.Compile(externNode));
     }
 }
