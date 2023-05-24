@@ -14,7 +14,7 @@ public class TestToCCompiler {
 
     @Test
     public void testCompileProgramNode() {
-        String programContent = "#include <math.h>\n#include <stdio.h>\n#include \"c_ml_base.c\"\nint main(int argc, char* argv[]){return 0;}";
+        String programContent = "#include <math.h>\n#include <stdio.h>\n#include <time.h>\n#include \"c_ml_base.c\"\nint main(int argc, char* argv[]){srand(time(NULL));return 0;}";
         ProgramNode program = new ProgramNode();
         assertEquals(programContent, CCompiler.Compile(program));
     }
