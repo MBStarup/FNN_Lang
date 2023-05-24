@@ -9,38 +9,63 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Scopes.push(new HashMap<>());
     }
 
+    // returns the first map in the stack that contains the name, or null if none does
+    public Map<String, FNNType> getScopeWith(String name) {
+        for (int i = Scopes.size() - 1; i >= 0; i--) {
+            var scope = Scopes.get(i);
+            var type = scope.get(name);
+            if (type != null) {
+                return scope;
+            }
+        }
+        return null;
+    }
+
+    public FNNType searchScopes(String name) {
+        for (int i = Scopes.size() - 1; i >= 0; i--) {
+            var type = Scopes.get(i).get(name);
+            if (type != null) {
+                return type;
+            }
+        }
+        return null;
+    }
+
     @Override public ProgramNode visitProgram(FNNParser.ProgramContext ctx) {
         ProgramNode result = new ProgramNode();
         var stmtList = this.visit(ctx.stmts);
-        Utils.ASSERT(stmtList instanceof StmtListNode, "I legit don't know how we'd ever get this error lmao");
+        Utils.ASSERT(stmtList instanceof StmtListNode, "Error when parsing program");
         result.Stmts = ((StmtListNode) stmtList).Stmts;
         return result;
     }
 
     @Override public StmtListNode visitStmtlist(FNNParser.StmtlistContext ctx) {
         var result = new StmtListNode();
-        if (ctx.children != null) {
-            for (var antlr_stmt_node : ctx.children) {
-                var ast_stmt_node = this.visit(antlr_stmt_node);
-                if (ast_stmt_node != null) { // TODO: figure out why this can happen
-                    Utils.ASSERT(ast_stmt_node instanceof StmtNode, "Found " + ast_stmt_node + " in stmtList, which is not a statement");
-                    result.Stmts.add((StmtNode) ast_stmt_node);
-                }
+        if (ctx.children == null) { // allow empty stmtlist, such a function with just the return
+            return result;
+        }
+
+        for (var antlr_stmt_node : ctx.children) {
+            var ast_stmt_node = this.visit(antlr_stmt_node);
+            if (ast_stmt_node != null) {
+                Utils.ASSERT(ast_stmt_node instanceof StmtNode, "Statementlist error when parsing: " + antlr_stmt_node.getText() + ", on line: " + ctx.getStart().getLine());
+                result.Stmts.add((StmtNode) ast_stmt_node);
             }
         }
+
         return result;
     }
 
     @Override public ExprListNode visitExprlist(FNNParser.ExprlistContext ctx) {
         var result = new ExprListNode();
 
-        if (ctx.children == null) { // TODO: Make this allowed if we want empty tuples
+        if (ctx.children == null) { // TODO: Consider supporting empty tuples
             Utils.ERREXIT("Empty exprlist, on line: " + ctx.getStart().getLine());
         }
 
         for (var antlr_expr_node : ctx.children) {
             var ast_expr_node = this.visit(antlr_expr_node);
-            Utils.ASSERT(ast_expr_node instanceof ExprNode, "Somehow we have a thing that was parsed to an exprlist, " + antlr_expr_node.getText() + ", but when visiting the children it doesn't result in an ExprNode, on line: " + ctx.getStart().getLine());
+            Utils.ASSERT(ast_expr_node instanceof ExprNode, "Exprlist error when parsing: " + antlr_expr_node.getText() + ", on line: " + ctx.getStart().getLine());
             result.Exprs.add((ExprNode) ast_expr_node);
         }
         return result;
@@ -48,12 +73,13 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override public TypeListNode visitTypelist(FNNParser.TypelistContext ctx) {
         var result = new TypeListNode();
-        if (ctx == null || ctx.children == null)
-            return result; // TODO: apparently we need to check this ain't null, so we need to do that everywhere else lmao
+        if (ctx.children == null) {
+            Utils.ERREXIT("Empty typelist, on line: " + ctx.getStart().getLine());
+        }
 
         for (var antlr_type_node : ctx.children) {
             var ast_type_node = this.visit(antlr_type_node);
-            Utils.ASSERT(ast_type_node instanceof TypeNode, "Somehow we have a thing that was parsed to an typelist, but when visiting the children it doesn't result in an TypeNode");
+            Utils.ASSERT(ast_type_node instanceof TypeNode, "Typelist error when parsing: " + antlr_type_node.getText() + ", on line: " + ctx.getStart().getLine());
             result.Types.add((TypeNode) ast_type_node);
         }
         return result;
@@ -66,7 +92,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(predicate instanceof ExprNode, "Predicate of while stmt was not an expression, on line: " + ctx.predicate.getStart().getLine());
         result.Predicate = (ExprNode) predicate;
         var predicate_target_type = new BaseType(TypeEnum.Int);
-        Utils.ASSERT((result.Predicate.Type).equals(predicate_target_type), "Predicate of while stmt is of type: " + result.Predicate.Type + ", should be: " + predicate_target_type + ", on line: " + ctx.predicate.getStart().getLine());
+        Utils.ASSERT((result.Predicate.Type).equals(predicate_target_type), "Predicate of while statement must be of type: " + predicate_target_type + ", not: " + result.Predicate.Type + ", on line: " + ctx.predicate.getStart().getLine());
 
         Scopes.push(new HashMap<String, FNNType>()); // New scope for functions
         var stmts = this.visit(ctx.stmts);
@@ -89,15 +115,17 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(r instanceof ExprNode, "Right operand of bi-operator was not an expression, on line: " + ctx.getStart().getLine());
         result.Right = (ExprNode) r;
 
-        Utils.ASSERT(result.Right.Type.equals(new BaseType(TypeEnum.Float)) || result.Right.Type.equals(new BaseType(TypeEnum.Int)), "Binary operations can only be used on expressions of type FLT or INT, not " + result.Right.Type + ", on line: " + ctx.getStart().getLine());
-        Utils.ASSERT(result.Left.Type.equals(new BaseType(TypeEnum.Float)) || result.Left.Type.equals(new BaseType(TypeEnum.Int)), "Binary operations can only be used on expressions of type FLT or INT, not " + result.Left.Type + ", on line: " + ctx.getStart().getLine());
+        var flt_type = new BaseType(TypeEnum.Float);
+        var int_type = new BaseType(TypeEnum.Int);
+        Utils.ASSERT(result.Right.Type.equals(flt_type) || result.Right.Type.equals(int_type), "Binary operations can only be used on expressions of type: " + flt_type + " or " + int_type + ", not: " + result.Right.Type + ", on line: " + ctx.getStart().getLine());
+        Utils.ASSERT(result.Left.Type.equals(flt_type) || result.Left.Type.equals(int_type), "Binary operations can only be used on expressions of type: " + flt_type + " or " + int_type + ", not: " + result.Left.Type + ", on line: " + ctx.getStart().getLine());
         Utils.ASSERT(result.Left.Type.equals(result.Right.Type), "Bi operation: " + ctx.OPERATOR().getText() + ", between mismatched types: " + result.Left.Type + " and " + result.Right.Type + ", on line: " + ctx.getStart().getLine());
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
         if (result.Operator == OpEnum.GreaterThan || result.Operator == OpEnum.LessThan || result.Operator == OpEnum.Equals)
-            result.Type = new BaseType(TypeEnum.Int);
+            result.Type = int_type;
         else
-            result.Type = result.Left.Type;
+            result.Type = Utils.TRY_UNWRAP(result.Left.Type);
 
         return result;
     }
@@ -109,11 +137,14 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(op instanceof ExprNode, "Operand of unary operator was not an expression, on line: " + ctx.op.getStart().getLine());
         result.Operand = (ExprNode) op;
         result.Type = Utils.TRY_UNWRAP(result.Operand.Type);
-        Utils.ASSERT(result.Operand.Type.equals(new BaseType(TypeEnum.Float)) || result.Operand.Type.equals(new BaseType(TypeEnum.Int)), "Unary operations can only be used on expressions of type FLT or INT, not " + result.Operand.Type + ", on line: " + ctx.getStart().getLine());
+
+        var flt_type = new BaseType(TypeEnum.Float);
+        var int_type = new BaseType(TypeEnum.Int);
+        Utils.ASSERT(result.Operand.Type.equals(flt_type) || result.Operand.Type.equals(int_type), "Unary operations can only be used on expressions of type: " + flt_type + " or " + int_type + ", not: " + result.Operand.Type + ", on line: " + ctx.getStart().getLine());
 
         result.Operator = OpEnum.parseChar(ctx.OPERATOR().getText().charAt(0));
         if (result.Operator != OpEnum.Minus && result.Operator != OpEnum.Plus)
-            Utils.ERREXIT("unexpected unary operator: " + result.Operator + ", on line: " + ctx.getStart().getLine());
+            Utils.ERREXIT("Unexpected unary operator: " + result.Operator + ", on line: " + ctx.getStart().getLine());
 
         return result;
     }
@@ -159,32 +190,17 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    // returns the first map in the stack that contains the name, or null if none does
-    public Map<String, FNNType> getScopeWith(String name) {
-        for (int i = Scopes.size() - 1; i >= 0; i--) {
-            var scope = Scopes.get(i);
-            var type = scope.get(name);
-            if (type != null) {
-                return scope;
-            }
-        }
-        return null;
-    }
-
     @Override public EvalNode visitEval(FNNParser.EvalContext ctx) {
         var name = ctx.ID().getText();
-        for (int i = Scopes.size() - 1; i >= 0; i--) {
-            var scope = Scopes.get(i);
-            var type = scope.get(name);
-            if (type != null) {
-                EvalNode result = new EvalNode();
-                result.Type = Utils.TRY_UNWRAP(type);
-                result.Name = name;
-                return result;
-            }
+        var type = searchScopes(name);
+        if (type != null) {
+            EvalNode result = new EvalNode();
+            result.Type = Utils.TRY_UNWRAP(type);
+            result.Name = name;
+            return result;
         }
         Utils.ERREXIT("Could not evaluate variable " + name + " on line: " + ctx.getStart().getLine());
-        return null;
+        return null; // unreachable
     }
 
     @Override public FuncNode visitFunctionlit(FNNParser.FunctionlitContext ctx) {
@@ -279,7 +295,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         var float_tuple = new TupleType();
         float_tuple.Types.add(new BaseType(TypeEnum.Float));
 
-        var activation_type = new FuncType(); // Define (FLT) -> (FLT), to compare equality with
+        var activation_type = new FuncType();
         activation_type.Args = float_tuple.Types;
         activation_type.Ret = float_tuple;
 
@@ -336,33 +352,30 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override public TrainNode visitTrain_stmt(FNNParser.Train_stmtContext ctx) {
         var result = new TrainNode();
+
+        var int_type = new BaseType(TypeEnum.Int);
         var epochs = this.visit(ctx.epochs);
         Utils.ASSERT(epochs instanceof ExprNode, "Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
         result.Epochs = (ExprNode) epochs;
-        Utils.ASSERT(result.Epochs.Type.equals(new BaseType(TypeEnum.Int)), "Epochs in training must be an integer, on line: " + ctx.epochs.getStart().getLine());
+        Utils.ASSERT(result.Epochs.Type.equals(int_type), "Epochs in training must be of type: " + int_type + ", not: " + result.Epochs.Type + ", on line: " + ctx.epochs.getStart().getLine());
 
+        var flt_type = new BaseType(TypeEnum.Float);
         var rate = this.visit(ctx.rate);
         Utils.ASSERT(rate instanceof ExprNode, "Rate in training must be an expression, on line: " + ctx.epochs.getStart().getLine());
         result.Rate = (ExprNode) rate;
-        Utils.ASSERT(result.Rate.Type.equals(new BaseType(TypeEnum.Float)), "Rate in training must be an float, on line: " + ctx.epochs.getStart().getLine());
+        Utils.ASSERT(result.Rate.Type.equals(flt_type), "Rate in training must be of type: " + flt_type + ", not: " + result.Rate.Type + ", on line: " + ctx.rate.getStart().getLine());
 
-        EvalNode nn = null;
         var name = ctx.nn.getText();
-        for (int i = Scopes.size() - 1; i >= 0; i--) {
-            var scope = Scopes.get(i);
-            var type = scope.get(name);
-            if (type != null) {
-                nn = new EvalNode();
-                nn.Type = Utils.TRY_UNWRAP(type);
-                nn.Name = name;
-            }
-        }
-        Utils.ASSERT(nn != null, "Could not evaluate variable " + name + " on line: " + ctx.getStart().getLine());
-        result.NN = nn;
-        Utils.ASSERT(result.NN.Type.equals(new BaseType(TypeEnum.NN)), "Model in training must be an model, on line: " + ctx.nn.getLine());
+        var type = searchScopes(name);
+        Utils.ASSERT(type != null, "Could not evaluate variable " + name + ", in TRAIN statement, on line: " + ctx.getStart().getLine());
+        result.NN = new EvalNode();
+        result.NN.Type = Utils.TRY_UNWRAP(type);
+        result.NN.Name = name;
+
+        var model_type = new BaseType(TypeEnum.NN);
+        Utils.ASSERT(result.NN.Type.equals(model_type), "Model in training must be of type: " + model_type + ", not: " + result.NN.Type + ", on line: " + ctx.nn.getLine());
 
         var fltarrarr_type = new ArrType(new ArrType(new BaseType(TypeEnum.Float)));
-
         var inputData = this.visit(ctx.input);
         Utils.ASSERT(inputData instanceof ExprNode, "Input Data in train must be an expression, on line: " + ctx.input.getStart().getLine());
         result.Input = (ExprNode) inputData;
@@ -446,6 +459,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
 
     @Override public TypeNode visitFunctypelit(FNNParser.FunctypelitContext ctx) {
         var result = new TypeNode();
+
         var type = new FuncType();
         var rets = this.visit(ctx.rets);
         Utils.ASSERT(rets instanceof TypeListNode, "Return type specification error in function type, on line: " + ctx.rets.getStart().getLine());
@@ -460,11 +474,13 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             type.Args.add(arg_type.Type);
         }
         result.Type = Utils.TRY_UNWRAP(type);
+
         return result;
     }
 
     @Override public TypeNode visitTupletypelit(FNNParser.TupletypelitContext ctx) {
         var result = new TypeNode();
+
         var type = new TupleType();
         var types = this.visit(ctx.tupletypes);
         Utils.ASSERT(types instanceof TypeListNode, "Tuple type specification error, on line: " + ctx.tupletypes.getStart().getLine());
@@ -472,15 +488,18 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             type.Types.add(return_type.Type);
         }
         result.Type = Utils.TRY_UNWRAP(type);
+
         return result;
     }
 
     @Override public TypeNode visitArrtypelit(FNNParser.ArrtypelitContext ctx) {
         var result = new TypeNode();
+
         var arrtypenode = this.visit(ctx.arrtype);
         Utils.ASSERT(arrtypenode instanceof TypeNode, "Array type sepcification error, on line: " + ctx.arrtype.getStart().getLine());
         var type = new ArrType(((TypeNode) arrtypenode).Type);
         result.Type = Utils.TRY_UNWRAP(type);
+
         return result;
     }
 
@@ -493,10 +512,10 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Utils.ASSERT(result.Array.Type instanceof ArrType, "Cannot index non-array type: " + result.Array.Type + ", on line: " + ctx.arr.getStart().getLine()); // kinda expects the type to be unwrapped, however can we know it is?
         result.Type = ((ArrType) result.Array.Type).Type;
 
+        var index_type = new BaseType(TypeEnum.Int);
         var index = this.visit(ctx.index);
         Utils.ASSERT(index instanceof ExprNode, "Array index must be an expression, on line: " + ctx.index.getStart().getLine());
         result.Index = (ExprNode) index;
-        var index_type = new BaseType(TypeEnum.Int);
         Utils.ASSERT(result.Index.Type.equals(index_type), "Array index must be of type: " + index_type + ", not: " + result.Index.Type + ", on line: " + ctx.index.getStart().getLine());
 
         return result;
@@ -505,19 +524,22 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
     @Override public TestNode visitTestexpr(FNNParser.TestexprContext ctx) {
         var result = new TestNode();
 
+        var nn_type = new BaseType(TypeEnum.NN);
         var nn = this.visit(ctx.nn);
-        Utils.ASSERT(nn instanceof ExprNode && ((ExprNode) nn).Type.equals(new BaseType(TypeEnum.NN)), "Can only test models, not " + nn + " on line: " + ctx.getStart().getLine());
+        Utils.ASSERT(nn instanceof ExprNode, "NN of TEST statement must be an expression, on line: " + ctx.getStart().getLine());
         result.NN = (ExprNode) nn;
+        Utils.ASSERT(result.NN.Type.equals(new BaseType(TypeEnum.NN)), "NN of TEST statement must be of type: " + nn_type + ", not: " + result.NN.Type + "on line: " + ctx.getStart().getLine());
 
         var float_arr_arr_type = new ArrType(new ArrType(new BaseType(TypeEnum.Float)));
-
         var in = this.visit(ctx.in);
-        Utils.ASSERT(in instanceof ExprNode && ((ExprNode) in).Type.equals(float_arr_arr_type), "Can only test models with in:[[FLT]], not " + in + " on line: " + ctx.getStart().getLine());
+        Utils.ASSERT(in instanceof ExprNode, "Input data of TEST statement must be an expression, on line: " + ctx.getStart().getLine());
         result.In = (ExprNode) in;
+        Utils.ASSERT(result.In.Type.equals(float_arr_arr_type), "Input data of TEST statement must be of type: " + float_arr_arr_type + ", not: " + result.In.Type + " on line: " + ctx.getStart().getLine());
 
         var out = this.visit(ctx.out);
-        Utils.ASSERT(out instanceof ExprNode && ((ExprNode) out).Type.equals(float_arr_arr_type), "Can only test models with out:[[FLT]], not " + out + " on line: " + ctx.getStart().getLine());
+        Utils.ASSERT(out instanceof ExprNode, "Expected output of TEST statement must be an expression, on line: " + ctx.getStart().getLine());
         result.Out = (ExprNode) out;
+        Utils.ASSERT(result.Out.Type.equals(float_arr_arr_type), "Expected output of TEST statement must be of type: " + float_arr_arr_type + ", not: " + result.Out.Type + " on line: " + ctx.getStart().getLine());
 
         result.Type = new BaseType(TypeEnum.Float);
 
