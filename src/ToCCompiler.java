@@ -339,9 +339,7 @@ public class ToCCompiler {
             Utils.ERREXIT("A NN must have at least one layer");
         }
 
-        result += "(";
-        result += Node.LayerSizes.size();
-        result += " -1)"; // n numbers = n-1 layers as they are paired up, ie. <100 50 10> becomes 2 layers: (100 -> 50) (50 -> 10)
+        result += "(" + (Node.LayerSizes.size() - 1) + ")"; // n numbers = n-1 layers as they are paired up, ie. NN(...)(100 50 10) becomes 2 layers: (100 -> 50) (50 -> 10)
 
         for (int i = 1; i < Node.LayerSizes.size(); i++) {
             result += ",";
