@@ -395,41 +395,6 @@ public class ToCCompiler {
         return result;
     }
 
-    private String tupleParamDelcare(String name, FNNType type) {
-        if (!(type instanceof TupleType)) {
-            return Declare(name, type);
-        }
-        var t = (TupleType) type;
-        String result = "";
-        if (t.Types.size() > 0) {
-            result += tupleParamDelcare(name + "_" + 0, t.Types.get(0));
-            for (int i = 1; i < t.Types.size(); i++) {
-                result += ",";
-                result += tupleParamDelcare(name + "_" + i, t.Types.get(i));
-            }
-        }
-
-        return result;
-    }
-
-    // probably the least general code I've ever written lmao
-    private String tupleParamAddrNoTypes(String name, FNNType type) { // this is so fucking stupid, like, lmao, I can't even. I deeply apologize to anyone who ever reads this. I truly am sorry.
-        if (!(type instanceof TupleType)) {
-            return "&" + name;
-        }
-        var t = (TupleType) type;
-        String result = "";
-        if (t.Types.size() > 0) {
-            result += tupleParamAddrNoTypes(name + "_" + 0, t.Types.get(0));
-            for (int i = 1; i < t.Types.size(); i++) {
-                result += ",";
-                result += tupleParamAddrNoTypes(name + "_" + i, t.Types.get(i));
-            }
-        }
-
-        return result;
-    }
-
     public String Compile(FuncNode Node) {
         int func_num = this.funcNum++;
         Utils.ASSERT(Node.Type instanceof FuncType, "Trying to declare function with non function type, compiler shit the bed");
