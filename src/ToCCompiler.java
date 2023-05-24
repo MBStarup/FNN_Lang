@@ -9,6 +9,179 @@ public class ToCCompiler {
         Scopes = new Stack<>();
     }
 
+    public static String TypeEnumToString(TypeEnum Enum) {
+        switch (Enum) {
+        case Int:
+            return "int PLACEHOLDER";
+        case Float:
+            return "double PLACEHOLDER";
+        case String:
+            return "char *PLACEHOLDER";
+        case NN:
+            return "model_T PLACEHOLDER";
+        default:
+            Utils.ERREXIT("Unexpected type (" + Enum + ") cannot be converted to c-type");
+            return null; // unreachable
+        }
+    }
+
+    public static String TypeToString(FNNType Type) {
+        if (Type instanceof BaseType) {
+            return TypeToString((BaseType) Type);
+        } else if (Type instanceof FuncType) {
+            return TypeToString((FuncType) Type);
+        } else if (Type instanceof TupleType) {
+            return TypeToString((TupleType) Type);
+        } else if (Type instanceof ArrType) {
+            return TypeToString((ArrType) Type);
+        } else {
+            Utils.ERREXIT("Unknown type " + Type + ", maybe update switch case");
+            return null; // unreachable
+        }
+    }
+
+    public static String TypeToString(BaseType Type) {
+        return TypeEnumToString(Type.Type);
+    }
+
+    public static String TypeToString(TupleType Type) {
+        return "char *PLACEHOLDER";
+    }
+
+    public static String TypeToString(ArrType Type) {
+        return TypeToString(Type.Type).replaceAll("PLACEHOLDER", "*PLACEHOLDER");
+    }
+
+    public static String TypeToString(FuncType Type) {
+        var rets = Utils.TRY_UNWRAP(Type.Ret);
+        String result = TypeToString(rets).replaceAll("PLACEHOLDER", "") + " (*PLACEHOLDER)(";
+        var args = Type.Args;
+        if (args.size() > 0) {
+            result += TypeToString(args.get(0)).replaceAll("PLACEHOLDER", "");
+            for (int i = 1; i < args.size(); i++) {
+                result += ", " + TypeToString(args.get(i)).replaceAll("PLACEHOLDER", "");
+            }
+        }
+        result += ")";
+        return result;
+    }
+
+    // does not actually add anything to the scope, just produces the c code that declares a variable in c
+    private String Declare(String name, FNNType type) {
+        return TypeToString(type).replaceAll("PLACEHOLDER", name);
+    }
+
+    private Boolean isDeclared(String name) {
+        for (var scope : Scopes) {
+            var type = scope.get(name);
+            if (type != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String Copy(String name, FNNType Type) {
+        var type = Utils.TRY_UNWRAP(Type);
+        if (type instanceof ArrType) {
+            ++indexNum;
+            var index = "INDEX" + indexNum;
+            var res = "({";
+            res += Declare("COPY", type) + " = ass_malloc_fnn_arr(sizeof(" + TypeToString(((ArrType) type).Type).replaceAll("PLACEHOLDER", "") + "), " + LengthOfArr(name) + ");";
+            res += "for (int " + index + " = 0; " + index + " < " + LengthOfArr(name) + "; " + index + "++){";
+            res += "COPY[" + index + "] = " + Copy(name + "[" + index + "]", ((ArrType) type).Type) + ";";
+            res += "}";
+            res += "COPY;";
+            res += "})";
+            --indexNum;
+            return res;
+        }
+        if (type instanceof TupleType) {
+            var res = "({";
+            res += Declare("COPY", type) + " = ass_malloc(" + SizeOfTuple((TupleType) type) + ");";
+            for (int i = 0; i < ((TupleType) type).Types.size(); i++) {
+                res += IndexTuple("COPY", (TupleType) type, i) + " = " + Copy(IndexTuple(name, (TupleType) type, i), ((TupleType) type).Types.get(i)) + ";";
+            }
+            res += "COPY;";
+            res += "})";
+            return res;
+        }
+        if (type.equals(new BaseType(TypeEnum.NN))) {
+            var res = "({";
+            res += "model_copy(" + name + ");";
+            res += "})";
+            return res;
+        }
+        return "(" + name + ")"; // not heap allocated data
+    }
+
+    public String CleanUp(Map<String, FNNType> Scope) {
+        String result = "";
+        for (var name : Scope.keySet()) {
+            result += CleanUpSingle(name, Scope.get(name));
+        }
+        return result;
+    }
+
+    public String CleanUpSingle(String Name, FNNType Type) {
+        if (Type instanceof ArrType) {
+            var index = "INDEX" + indexNum++;
+            String result = "for (int " + index + " = 0; " + index + " < " + LengthOfArr(Name) + "; " + index + "++){" + CleanUpSingle(Name + "[" + index + "]", ((ArrType) Type).Type) + "};";
+            result += "(ass_free_fnn_arr(" + Name + "));";
+            --indexNum;
+            return result;
+
+        } else if (Type instanceof TupleType) {
+            String result = "";
+            for (int i = 0; i < ((TupleType) Type).Types.size(); i++) {
+                result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), ((TupleType) Type).Types.get(i)) + ";";
+            }
+            result += "ass_free(" + Name + ");";
+            return result;
+        } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.NN) {
+            return "(model_del(" + Name + "));";
+        }
+        return ""; // rest of Basetypes and functypes are fully stack allocated, so require no cleanup
+    }
+
+    public String IndexTuple(String Name, TupleType Type, int i) {
+        return IndexTuple(Name, Type.Types, i);
+    }
+
+    public String IndexTuple(String Name, List<FNNType> Types, int index) {
+        var res = "(*((" + TypeToString(Types.get(index)).replaceAll("PLACEHOLDER", "*") + ")(&(" + Name + "[0+"; // interprets the pointer as a pointer to whatever type we have
+        for (int i = 0; i < index; i++) {
+            res += "sizeof(" + TypeToString(Types.get(i)).replaceAll("PLACEHOLDER", "") + ")+";
+        }
+        res += "0]))))";
+        return res;
+    }
+
+    public String LengthOfArr(String Name) {
+        return "((int *)" + Name + ")[-1]";
+    }
+
+    public String SizeOfTuple(TupleType type) {
+        String result = "0";
+
+        for (var t : type.Types) {
+            result += "+sizeof(" + TypeToString(t).replaceAll("PLACEHOLDER", "") + ")";
+        }
+
+        return result;
+    }
+
+    public Boolean HeapAlloced(FNNType type) {
+        var t = Utils.TRY_UNWRAP(type);
+        if (t instanceof TupleType)
+            return true;
+        if (t instanceof ArrType)
+            return true;
+        if (t instanceof BaseType)
+            return t.equals(new BaseType(TypeEnum.NN));
+        return false;
+    }
+
     public String Compile(ProgramNode Node) {
         String result = "#include <math.h>\n#include <stdio.h>\n#include <time.h>\n#include \"c_ml_base.c\"\n";
         Scopes.push(new HashMap<>());
@@ -139,63 +312,6 @@ public class ToCCompiler {
         return result;
     }
 
-    public static String TypeEnumToString(TypeEnum Enum) {
-        switch (Enum) {
-        case Int:
-            return "int PLACEHOLDER";
-        case Float:
-            return "double PLACEHOLDER";
-        case String:
-            return "char *PLACEHOLDER";
-        case NN:
-            return "model_T PLACEHOLDER";
-        default:
-            Utils.ERREXIT("Unexpected type (" + Enum + ") cannot be converted to c-type");
-            return null; // unreachable
-        }
-    }
-
-    public static String TypeToString(FNNType Type) {
-        if (Type instanceof BaseType) {
-            return TypeToString((BaseType) Type);
-        } else if (Type instanceof FuncType) {
-            return TypeToString((FuncType) Type);
-        } else if (Type instanceof TupleType) {
-            return TypeToString((TupleType) Type);
-        } else if (Type instanceof ArrType) {
-            return TypeToString((ArrType) Type);
-        } else {
-            Utils.ERREXIT("Unknown type " + Type + ", maybe update switch case");
-            return null; // unreachable
-        }
-    }
-
-    public static String TypeToString(ArrType Type) {
-        return TypeToString(Type.Type).replaceAll("PLACEHOLDER", "*PLACEHOLDER");
-    }
-
-    public static String TypeToString(FuncType Type) {
-        var rets = Utils.TRY_UNWRAP(Type.Ret);
-        String result = TypeToString(rets).replaceAll("PLACEHOLDER", "") + " (*PLACEHOLDER)(";
-        var args = Type.Args;
-        if (args.size() > 0) {
-            result += TypeToString(args.get(0)).replaceAll("PLACEHOLDER", "");
-            for (int i = 1; i < args.size(); i++) {
-                result += ", " + TypeToString(args.get(i)).replaceAll("PLACEHOLDER", "");
-            }
-        }
-        result += ")";
-        return result;
-    }
-
-    public static String TypeToString(TupleType Type) {
-        return "char *PLACEHOLDER";
-    }
-
-    public static String TypeToString(BaseType Type) {
-        return TypeEnumToString(Type.Type);
-    }
-
     public String Compile(FloatNode Node) {
         String result = "(";
         result += Node.Value;
@@ -252,16 +368,6 @@ public class ToCCompiler {
         }
         result += ")";
         return result;
-    }
-
-    private Boolean isDeclared(String name) {
-        for (var scope : Scopes) {
-            var type = scope.get(name);
-            if (type != null) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public String Compile(AssignNode Node) {
@@ -356,10 +462,6 @@ public class ToCCompiler {
         return result;
     }
 
-    private String Declare(String name, FNNType type) {
-        return TypeToString(type).replaceAll("PLACEHOLDER", name);
-    }
-
     public String Compile(TupleNode Node) {
         var types = Utils.AS_LIST(Node.Type);
 
@@ -450,106 +552,5 @@ public class ToCCompiler {
 
         return result;
 
-    }
-
-    private String Copy(String name, FNNType Type) {
-        var type = Utils.TRY_UNWRAP(Type);
-        if (type instanceof ArrType) {
-            ++indexNum;
-            var index = "INDEX" + indexNum;
-            var res = "({";
-            res += Declare("COPY", type) + " = ass_malloc_fnn_arr(sizeof(" + TypeToString(((ArrType) type).Type).replaceAll("PLACEHOLDER", "") + "), " + LengthOfArr(name) + ");";
-            res += "for (int " + index + " = 0; " + index + " < " + LengthOfArr(name) + "; " + index + "++){";
-            res += "COPY[" + index + "] = " + Copy(name + "[" + index + "]", ((ArrType) type).Type) + ";";
-            res += "}";
-            res += "COPY;";
-            res += "})";
-            --indexNum;
-            return res;
-        }
-        if (type instanceof TupleType) {
-            var res = "({";
-            res += Declare("COPY", type) + " = ass_malloc(" + SizeOfTuple((TupleType) type) + ");";
-            for (int i = 0; i < ((TupleType) type).Types.size(); i++) {
-                res += IndexTuple("COPY", (TupleType) type, i) + " = " + Copy(IndexTuple(name, (TupleType) type, i), ((TupleType) type).Types.get(i)) + ";";
-            }
-            res += "COPY;";
-            res += "})";
-            return res;
-        }
-        if (type.equals(new BaseType(TypeEnum.NN))) {
-            var res = "({";
-            res += "model_copy(" + name + ");";
-            res += "})";
-            return res;
-        }
-        return "(" + name + ")"; // not heap allocated data
-    }
-
-    public String CleanUp(Map<String, FNNType> Scope) {
-        String result = "";
-        for (var name : Scope.keySet()) {
-            result += CleanUpSingle(name, Scope.get(name));
-        }
-        return result;
-    }
-
-    public String CleanUpSingle(String Name, FNNType Type) {
-        if (Type instanceof ArrType) {
-            var index = "INDEX" + indexNum++;
-            String result = "for (int " + index + " = 0; " + index + " < " + LengthOfArr(Name) + "; " + index + "++){" + CleanUpSingle(Name + "[" + index + "]", ((ArrType) Type).Type) + "};";
-            result += "(ass_free_fnn_arr(" + Name + "));";
-            --indexNum;
-            return result;
-
-        } else if (Type instanceof TupleType) {
-            String result = "";
-            for (int i = 0; i < ((TupleType) Type).Types.size(); i++) {
-                result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), ((TupleType) Type).Types.get(i)) + ";";
-            }
-            result += "ass_free(" + Name + ");";
-            return result;
-        } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.NN) {
-            return "(model_del(" + Name + "));";
-        }
-        return ""; // rest of Basetypes and functypes are fully stack allocated, so require no cleanup
-    }
-
-    public String IndexTuple(String Name, TupleType Type, int i) {
-        return IndexTuple(Name, Type.Types, i);
-    }
-
-    public String IndexTuple(String Name, List<FNNType> Types, int index) {
-        var res = "(*((" + TypeToString(Types.get(index)).replaceAll("PLACEHOLDER", "*") + ")(&(" + Name + "[0+"; // interprets the pointer as a pointer to whatever type we have
-        for (int i = 0; i < index; i++) {
-            res += "sizeof(" + TypeToString(Types.get(i)).replaceAll("PLACEHOLDER", "") + ")+";
-        }
-        res += "0]))))";
-        return res;
-    }
-
-    public String LengthOfArr(String Name) {
-        return "((int *)" + Name + ")[-1]";
-    }
-
-    public String SizeOfTuple(TupleType type) {
-        String result = "0";
-
-        for (var t : type.Types) {
-            result += "+sizeof(" + TypeToString(t).replaceAll("PLACEHOLDER", "") + ")";
-        }
-
-        return result;
-    }
-
-    public boolean HeapAlloced(FNNType type) {
-        var t = Utils.TRY_UNWRAP(type);
-        if (t instanceof TupleType)
-            return true;
-        if (t instanceof ArrType)
-            return true;
-        if (t instanceof BaseType)
-            return t.equals(new BaseType(TypeEnum.NN));
-        return false;
     }
 }
