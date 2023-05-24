@@ -164,7 +164,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
                     Scopes.peek().put(name, type); // if it's not already in any scope, put it in the top one
                 } else {
                     var old_type = scope.get(name);
-                    Utils.ASSERT(type == old_type, "Trying to assign value of type: " + type + " to already used variable (" + name + ") of type: " + old_type + ", on line: " + ctx.getStart().getLine());
+                    Utils.ASSERT(type.equals(old_type), "Trying to assign value of type: " + type + " to already used variable (" + name + ") of type: " + old_type + ", on line: " + ctx.getStart().getLine());
                 }
             }
         } else {
@@ -177,7 +177,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
                 Scopes.peek().put(name, type); // if it's not already in any scope, put it in the top one
             } else {
                 var old_type = scope.get(name);
-                Utils.ASSERT(type == old_type, "Trying to assign value of type: " + type + " to already used variable (" + name + ") of type: " + old_type + ", on line: " + ctx.getStart().getLine());
+                Utils.ASSERT(type.equals(old_type), "Trying to assign value of type: " + type + " to already used variable (" + name + ") of type: " + old_type + ", on line: " + ctx.getStart().getLine());
             }
         }
         return result;
@@ -480,7 +480,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
             Scopes.peek().put(name, type); // if it's not already in any scope, put it in the top one
         } else {
             var old_type = scope.get(name);
-            Utils.ASSERT(type == old_type, "Trying to declare extern variable with type: " + type + ", but variable (" + name + ") is already used with type: " + old_type + ", on line: " + ctx.getStart().getLine());
+            Utils.ASSERT(type.equals(old_type), "Trying to declare extern variable with type: " + type + ", but variable (" + name + ") is already used with type: " + old_type + ", on line: " + ctx.getStart().getLine());
         }
 
         result.Name = name;
