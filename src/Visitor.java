@@ -9,8 +9,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         Scopes.push(new HashMap<>());
     }
 
-    @Override
-    public ProgramNode visitProgram(FNNParser.ProgramContext ctx) {
+    @Override public ProgramNode visitProgram(FNNParser.ProgramContext ctx) {
         ProgramNode result = new ProgramNode();
         var stmtList = this.visit(ctx.stmts);
         Utils.ASSERT(stmtList instanceof StmtListNode, "I legit don't know how we'd ever get this error lmao");
@@ -18,8 +17,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public StmtListNode visitStmtlist(FNNParser.StmtlistContext ctx) {
+    @Override public StmtListNode visitStmtlist(FNNParser.StmtlistContext ctx) {
         var result = new StmtListNode();
         if (ctx.children != null) {
             for (var antlr_stmt_node : ctx.children) {
@@ -33,8 +31,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public ExprListNode visitExprlist(FNNParser.ExprlistContext ctx) {
+    @Override public ExprListNode visitExprlist(FNNParser.ExprlistContext ctx) {
         var result = new ExprListNode();
 
         if (ctx.children == null) { // TODO: Make this allowed if we want empty tuples
@@ -49,8 +46,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public TypeListNode visitTypelist(FNNParser.TypelistContext ctx) {
+    @Override public TypeListNode visitTypelist(FNNParser.TypelistContext ctx) {
         var result = new TypeListNode();
         if (ctx == null || ctx.children == null)
             return result; // TODO: apparently we need to check this ain't null, so we need to do that everywhere else lmao
@@ -63,8 +59,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public WhileNode visitWhile_stmt(FNNParser.While_stmtContext ctx) {
+    @Override public WhileNode visitWhile_stmt(FNNParser.While_stmtContext ctx) {
         WhileNode result = new WhileNode();
 
         var predicate = this.visit(ctx.predicate);
@@ -83,8 +78,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public BiOperatorNode visitBiop(FNNParser.BiopContext ctx) {
+    @Override public BiOperatorNode visitBiop(FNNParser.BiopContext ctx) {
         BiOperatorNode result = new BiOperatorNode();
 
         var l = this.visit(ctx.left_op);
@@ -108,8 +102,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public UnOperatorNode visitUnop(FNNParser.UnopContext ctx) {
+    @Override public UnOperatorNode visitUnop(FNNParser.UnopContext ctx) {
         UnOperatorNode result = new UnOperatorNode();
 
         var op = this.visit(ctx.op);
@@ -125,8 +118,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public AssignNode visitAssign(FNNParser.AssignContext ctx) {
+    @Override public AssignNode visitAssign(FNNParser.AssignContext ctx) {
         var result = new AssignNode();
         var value = this.visit(ctx.expr_in_assign);
         Utils.ASSERT(value instanceof ExprNode, "Right side of assignment was not an expression, on line: " + ctx.expr_in_assign.getStart().getLine());
@@ -179,8 +171,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return null;
     }
 
-    @Override
-    public EvalNode visitEval(FNNParser.EvalContext ctx) {
+    @Override public EvalNode visitEval(FNNParser.EvalContext ctx) {
         var name = ctx.ID().getText();
         for (int i = Scopes.size() - 1; i >= 0; i--) {
             var scope = Scopes.get(i);
@@ -196,8 +187,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return null;
     }
 
-    @Override
-    public FuncNode visitFunctionlit(FNNParser.FunctionlitContext ctx) {
+    @Override public FuncNode visitFunctionlit(FNNParser.FunctionlitContext ctx) {
         var result = new FuncNode();
 
         var param_types = this.visit(ctx.params);
@@ -231,8 +221,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public ParamDeclListNode visitParamdecllist(FNNParser.ParamdecllistContext ctx) {
+    @Override public ParamDeclListNode visitParamdecllist(FNNParser.ParamdecllistContext ctx) {
         var result = new ParamDeclListNode();
 
         Utils.ASSERT(ctx.children != null, "Empty parameter declaration, on line: " + ctx.getStart().getLine()); // TODO: consider supporting parameterless functions
@@ -245,8 +234,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public ParamDeclNode visitParamdecl(FNNParser.ParamdeclContext ctx) {
+    @Override public ParamDeclNode visitParamdecl(FNNParser.ParamdeclContext ctx) {
         var result = new ParamDeclNode();
         result.Name = ctx.ID().getText();
 
@@ -257,24 +245,21 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public IntNode visitIntlit(FNNParser.IntlitContext ctx) {
+    @Override public IntNode visitIntlit(FNNParser.IntlitContext ctx) {
         IntNode result = new IntNode();
         result.Type = new BaseType(TypeEnum.Int);
         result.Value = Integer.parseInt(ctx.getText());
         return result;
     }
 
-    @Override
-    public FloatNode visitFloatlit(FNNParser.FloatlitContext ctx) {
+    @Override public FloatNode visitFloatlit(FNNParser.FloatlitContext ctx) {
         FloatNode result = new FloatNode();
         result.Type = new BaseType(TypeEnum.Float);
         result.Value = Float.parseFloat(ctx.getText());
         return result;
     }
 
-    @Override
-    public TupleNode visitTuplelit(FNNParser.TuplelitContext ctx) {
+    @Override public TupleNode visitTuplelit(FNNParser.TuplelitContext ctx) {
         var result = new TupleNode();
         var elems = this.visit(ctx.exprs);
         var type = new TupleType();
@@ -287,8 +272,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public NNNode visitNnlit(FNNParser.NnlitContext ctx) {
+    @Override public NNNode visitNnlit(FNNParser.NnlitContext ctx) {
         var result = new NNNode();
         result.Type = new BaseType(TypeEnum.NN);
 
@@ -321,8 +305,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public StringNode visitStrlit(FNNParser.StrlitContext ctx) {
+    @Override public StringNode visitStrlit(FNNParser.StrlitContext ctx) {
         var result = new StringNode();
         result.Type = new BaseType(TypeEnum.String);
         var content = ctx.STR();
@@ -333,8 +316,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public ArrNode visitArrlit(FNNParser.ArrlitContext ctx) {
+    @Override public ArrNode visitArrlit(FNNParser.ArrlitContext ctx) {
         var result = new ArrNode();
 
         var exprs = ((ExprListNode) this.visit(ctx.exprs)).Exprs;
@@ -352,8 +334,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public TrainNode visitTrain_stmt(FNNParser.Train_stmtContext ctx) {
+    @Override public TrainNode visitTrain_stmt(FNNParser.Train_stmtContext ctx) {
         var result = new TrainNode();
         var epochs = this.visit(ctx.epochs);
         Utils.ASSERT(epochs instanceof ExprNode, "Epochs in training must be an expression: " + ctx.epochs.getStart() + " to " + ctx.epochs.getStop());
@@ -395,8 +376,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public CallNode visitCall(FNNParser.CallContext ctx) {
+    @Override public CallNode visitCall(FNNParser.CallContext ctx) {
         var result = new CallNode();
         var func_expr = this.visit(ctx.func);
         Utils.ASSERT(func_expr instanceof ExprNode, "Attempting to call non expression, " + ctx.getText() + ", on line: " + ctx.func.getStart().getLine());
@@ -421,8 +401,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public ExternNode visitExtern(FNNParser.ExternContext ctx) {
+    @Override public ExternNode visitExtern(FNNParser.ExternContext ctx) {
         var result = new ExternNode();
         var name = ctx.ID().getText();
 
@@ -443,8 +422,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public TypeNode visitBasetypelit(FNNParser.BasetypelitContext ctx) {
+    @Override public TypeNode visitBasetypelit(FNNParser.BasetypelitContext ctx) {
         var result = new TypeNode();
         switch (ctx.BASETYPE().getText()) {
         case "STR":
@@ -466,8 +444,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public TypeNode visitFunctypelit(FNNParser.FunctypelitContext ctx) {
+    @Override public TypeNode visitFunctypelit(FNNParser.FunctypelitContext ctx) {
         var result = new TypeNode();
         var type = new FuncType();
         var rets = this.visit(ctx.rets);
@@ -486,8 +463,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public TypeNode visitTupletypelit(FNNParser.TupletypelitContext ctx) {
+    @Override public TypeNode visitTupletypelit(FNNParser.TupletypelitContext ctx) {
         var result = new TypeNode();
         var type = new TupleType();
         var types = this.visit(ctx.tupletypes);
@@ -499,8 +475,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public TypeNode visitArrtypelit(FNNParser.ArrtypelitContext ctx) {
+    @Override public TypeNode visitArrtypelit(FNNParser.ArrtypelitContext ctx) {
         var result = new TypeNode();
         var arrtypenode = this.visit(ctx.arrtype);
         Utils.ASSERT(arrtypenode instanceof TypeNode, "Array type sepcification error, on line: " + ctx.arrtype.getStart().getLine());
@@ -509,8 +484,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public ArrAccessNode visitArraccess(FNNParser.ArraccessContext ctx) {
+    @Override public ArrAccessNode visitArraccess(FNNParser.ArraccessContext ctx) {
         var result = new ArrAccessNode();
 
         var arr = this.visit(ctx.arr);
@@ -528,8 +502,7 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
         return result;
     }
 
-    @Override
-    public TestNode visitTestexpr(FNNParser.TestexprContext ctx) {
+    @Override public TestNode visitTestexpr(FNNParser.TestexprContext ctx) {
         var result = new TestNode();
 
         var nn = this.visit(ctx.nn);
