@@ -1,5 +1,7 @@
 import java.util.*;
 
+import net.bytebuddy.asm.Advice.Return;
+
 public class Visitor extends FNNBaseVisitor<AstNode> {
 
     public Stack<Map<String, FNNType>> Scopes;
@@ -157,16 +159,40 @@ public class Visitor extends FNNBaseVisitor<AstNode> {
                 var type = t_type.Types.get(i);
                 result.Types.add(type);
                 result.Names.add(name);
-                Scopes.peek().put(name, type);
+                var scope = getScopeWith(name);
+                if (scope == null) {
+                    Scopes.peek().put(name, type); // if it's not already in any scope, put it in the top one
+                } else {
+                    var old_type = scope.get(name);
+                    Utils.ASSERT(type == old_type, "Trying to assign value of type: " + type + " to already used variable (" + ctx.ID(i) + ") of type: " + old_type + ", on line: " + ctx.getStart().getLine());
+                }
             }
         } else {
             var name = ctx.ID(0).getText();
             var type = result.Value.Type;
             result.Types.add(type);
             result.Names.add(name);
-            Scopes.peek().put(name, type);
+            var scope = getScopeWith(name);
+            if (scope == null) {
+                Scopes.peek().put(name, type); // if it's not already in any scope, put it in the top one
+            } else {
+                var old_type = scope.get(name);
+                Utils.ASSERT(type == old_type, "Trying to assign value of type: " + type + " to already used variable (" + ctx.ID(0) + ") of type: " + old_type + ", on line: " + ctx.getStart().getLine());
+            }
         }
         return result;
+    }
+
+    // returns the first map in the stack that contains the name, or null if none does
+    public Map<String, FNNType> getScopeWith(String name) {
+        for (int i = Scopes.size() - 1; i >= 0; i--) {
+            var scope = Scopes.get(i);
+            var type = scope.get(name);
+            if (type != null) {
+                return scope;
+            }
+        }
+        return null;
     }
 
     @Override
