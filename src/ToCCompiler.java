@@ -1,13 +1,6 @@
 import java.util.*;
 
 public class ToCCompiler {
-    // public String Compile(AstNode Node) {
-    // System.err.println("Unexpected nodes: " + Node.getClass() + " while trying to
-    // compile to C, exiting...");
-    // System.exit(-1);
-    // return null;
-    // }
-
     public Stack<Map<String, FNNType>> Scopes;
     private int funcNum = 0;
     private int indexNum = 0;
@@ -18,17 +11,9 @@ public class ToCCompiler {
 
     public String Compile(ProgramNode Node) {
         String result = "#include <math.h>\n#include <stdio.h>\n#include <time.h>\n#include \"c_ml_base.c\"\n";
-        // result += "#define TRAINING_DATA_AMOUNT 12\n";
         Scopes.push(new HashMap<>());
         result += "int main(int argc, char* argv[]){";
         result += "srand(time(NULL));";
-        // result += " double *training_data_input[TRAINING_DATA_AMOUNT];\ndouble
-        // *training_expected_output[TRAINING_DATA_AMOUNT];\nload_csv(training_expected_output,
-        // OUTPUT_SIZE, training_data_input, INPUT_SIZE, TRAINING_DATA_AMOUNT,
-        // \"../c_ml/mnist_train.csv\", 5);\n";
-        // result += " activation
-        // sigmoid_activationfunction;\nsigmoid_activationfunction.function =
-        // sigmoid;\nsigmoid_activationfunction.derivative = derivative_of_sigmoid;\n";
         result += this.Compile(Node.Stmts);
         result += CleanUp(Scopes.pop());
         result += "return 0;}";
@@ -88,25 +73,20 @@ public class ToCCompiler {
         else if (Node instanceof TestNode)
             return Compile((TestNode) Node);
         else {
-            System.err.println("Unexpected ExprNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
-            System.exit(-1);
+            Utils.ERREXIT("Unexpected ExprNode: " + Node.getClass() + " while trying to compile to C (you prolly need to add it to the switch case lmao), exiting...");
+            return null; // unreachable
         }
-        return null;
     }
 
     public String Compile(WhileNode Node) {
-        var result = "while(" + this.Compile(Node.Predicate) + "){" + this.Compile(Node.Stmts) + "}";
+        String result = "while(" + this.Compile(Node.Predicate) + "){" + this.Compile(Node.Stmts) + "}";
         return result;
     }
 
     public String Compile(BiOperatorNode Node) {
         String result = "(";
         if (Node.Operator == OpEnum.Power) {
-            result += "pow(";
-            result += Compile(Node.Left);
-            result += ",";
-            result += Compile(Node.Right);
-            result += ")";
+            result += "pow(" + Compile(Node.Left) + "," + Compile(Node.Right) + ")";
         } else {
             result += Compile(Node.Left);
             switch (Node.Operator) {
@@ -132,9 +112,8 @@ public class ToCCompiler {
                 result += " == ";
                 break;
             default:
-                System.err.println("Unknown binary-operator: " + Node.Operator + " exiting...");
-                System.exit(-1);
-                break;
+                Utils.ERREXIT("Unknown binary-operator: " + Node.Operator + " exiting..."); // Might be redundant if we check correctly in the visitor
+                break; // unreachable
             }
             result += Compile(Node.Right);
         }
@@ -152,9 +131,8 @@ public class ToCCompiler {
             result += " - ";
             break;
         default:
-            System.err.println("Unknown Unary-operator: " + Node.Operator + " exiting...");
-            System.exit(-1);
-            break;
+            Utils.ERREXIT("Unknown Unary-operator: " + Node.Operator + " exiting..."); // Might be redundant if we check correctly in the visitor
+            return null; // unreachable
         }
         result += Compile(Node.Operand);
         result += ")";
@@ -173,9 +151,8 @@ public class ToCCompiler {
             return "model_T PLACEHOLDER";
         default:
             Utils.ERREXIT("Unexpected type (" + Enum + ") cannot be converted to c-type");
+            return null; // unreachable
         }
-
-        return null;
     }
 
     public static String TypeToString(FNNType Type) {
@@ -198,23 +175,9 @@ public class ToCCompiler {
     }
 
     public static String TypeToString(FuncType Type) {
-        String result = "";
-        // result += "void (*PLACEHOLDER)("; // all funcitons return void
-
         var rets = Utils.TRY_UNWRAP(Type.Ret);
-        result += TypeToString(rets).replaceAll("PLACEHOLDER", "") + " (*PLACEHOLDER)(";
+        String result = TypeToString(rets).replaceAll("PLACEHOLDER", "") + " (*PLACEHOLDER)(";
         var args = Type.Args;
-
-        // if (rets.size() > 0) {
-        // result += TypeToString(rets.get(0)).replaceAll("PLACEHOLDER", "*");
-        // for (int i = 1; i < rets.size(); i++) {
-        // result += ", " + TypeToString(rets.get(i)).replaceAll("PLACEHOLDER", "*");
-        // }
-
-        // if (args.size() > 0)
-        // result += ", ";
-        // }
-
         if (args.size() > 0) {
             result += TypeToString(args.get(0)).replaceAll("PLACEHOLDER", "");
             for (int i = 1; i < args.size(); i++) {
@@ -311,9 +274,7 @@ public class ToCCompiler {
             } else {
                 result += Node.Names.get(0);
             }
-            result += " = ";
-            result += this.Compile(Node.Value);
-            result += ";\n";
+            result += " = " + this.Compile(Node.Value) + ";\n";
         } else {
             for (int i = 0; i < Node.Names.size(); i++) {
                 if (!(isDeclared(Node.Names.get(i)))) { // not declared
@@ -335,13 +296,11 @@ public class ToCCompiler {
             result += "}";
         }
 
-        System.out.println("Assign: " + result);
         return result;
     }
 
     public String Compile(ArrNode Node) {
-        String result = "";
-        result += "({";
+        String result = "({";
         result += Declare("ARR", Node.Type) + " = ass_malloc_fnn_arr(sizeof(" + TypeToString(((ArrType) Node.Type).Type).replaceAll("PLACEHOLDER", "") + "), " + Node.Count + ");";
         for (int i = 0; i < Node.Exprs.size(); i++) {
             result += "ARR[" + i + "] = " + this.Compile(Node.Exprs.get(i)) + ";";
@@ -372,8 +331,7 @@ public class ToCCompiler {
     }
 
     public String Compile(ExternNode Node) {
-        String result = "";
-        result += Declare(Node.Name, Node.Type);
+        String result = Declare(Node.Name, Node.Type);
         result += " = ";
         if (Node.Type instanceof FuncType) {
             result += "&" + "E_" + Node.Name;
@@ -564,7 +522,7 @@ public class ToCCompiler {
     }
 
     public String CleanUp(Map<String, FNNType> Scope) {
-        var result = "";
+        String result = "";
         for (var name : Scope.keySet()) {
             result += CleanUpSingle(name, Scope.get(name));
         }
@@ -574,25 +532,22 @@ public class ToCCompiler {
     public String CleanUpSingle(String Name, FNNType Type) {
         if (Type instanceof ArrType) {
             var index = "INDEX" + indexNum++;
-            var result = "for (int " + index + " = 0; " + index + " < " + LengthOfArr(Name) + "; " + index + "++){" + CleanUpSingle(Name + "[" + index + "]", ((ArrType) Type).Type) + "};";
+            String result = "for (int " + index + " = 0; " + index + " < " + LengthOfArr(Name) + "; " + index + "++){" + CleanUpSingle(Name + "[" + index + "]", ((ArrType) Type).Type) + "};";
             result += "(ass_free_fnn_arr(" + Name + "));";
             --indexNum;
             return result;
 
         } else if (Type instanceof TupleType) {
-            System.out.println("CLEANING " + Name + ": " + Type);
-            var result = "";
+            String result = "";
             for (int i = 0; i < ((TupleType) Type).Types.size(); i++) {
                 result += CleanUpSingle(IndexTuple(Name, (TupleType) Type, i), ((TupleType) Type).Types.get(i)) + ";";
             }
             result += "ass_free(" + Name + ");";
-            System.out.println(result);
-            System.out.println("------");
             return result;
         } else if (Type instanceof BaseType && ((BaseType) Type).Type == TypeEnum.NN) {
             return "(model_del(" + Name + "));";
         }
-        return ""; // rest of Basetypes and functypes are stack allocated
+        return ""; // rest of Basetypes and functypes are fully stack allocated, so require no cleanup
     }
 
     public String IndexTuple(String Name, TupleType Type, int i) {
@@ -613,7 +568,7 @@ public class ToCCompiler {
     }
 
     public String SizeOfTuple(TupleType type) {
-        var result = "0";
+        String result = "0";
 
         for (var t : type.Types) {
             result += "+sizeof(" + TypeToString(t).replaceAll("PLACEHOLDER", "") + ")";
