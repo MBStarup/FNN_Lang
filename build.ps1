@@ -16,6 +16,7 @@ rmf .\bin
 rmf .\a.exe
 java -jar lib/antlr.jar -o antlrfiles -visitor -no-listener -Xexact-output-dir src/*.g4
 javac -d bin -cp lib/* antlrfiles/*.java src/*.java
+jar cmf .\MANIFEST.MF FNNC.jar lib/antlr.jar -C bin . 
 
 Write-Host "" -f blue
 Write-Host "Building Done" -f blue
