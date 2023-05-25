@@ -4,15 +4,10 @@ public class Utils {
     static void ERREXIT(String msg) {
         int i = 1;
         var caller = Thread.currentThread().getStackTrace()[i];
-        while ((caller = Thread.currentThread().getStackTrace()[i]).getFileName().startsWith("Utils")) {
+        while ((caller = Thread.currentThread().getStackTrace()[i]).getFileName().startsWith("Utils")) { // Skips the errors from this file, and prints where the ERREXIT was called (fx. so it doesn't say the err is from the ASSERT method in this file, but where that was called originally)
             ++i;
-        } // Skips the errors from this file, and prints where the ERREXIT was called
-          // (fx. so it doesn't say the err is from the ASSERT method in this file, but where that was called originally)
-        System.err.print("ERR (");
-        System.err.print(caller.getFileName());
-        System.err.print(":");
-        System.err.print(caller.getLineNumber());
-        System.err.print("): ");
+        }
+        System.err.print("ERR (" + caller.getFileName() + ":" + caller.getLineNumber() + "): ");
         System.err.println(msg);
         System.exit(-1);
     }
@@ -49,7 +44,7 @@ public class Utils {
         var result = new TupleType();
         if (Type instanceof TupleType) {
             for (var tuple_elem : ((TupleType) Type).Types) {
-                var flat = FLATTEN(tuple_elem); // recursively flatten each subsequent element of the tuple
+                var flat = FLATTEN(tuple_elem);
                 for (var t : flat.Types) {
                     result.Types.add(t);
                 }

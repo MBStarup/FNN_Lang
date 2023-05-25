@@ -4,6 +4,8 @@
 @print_int: (INT) -> (INT)
 @print: (STR) -> (INT)
 
+print!("hello\n")
+
 (in): 784 
 (out): 10 
 
@@ -22,7 +24,7 @@
 
 (err): 99.9
 (i): 0
-(epochs): 100
+(epochs): 1
 WHILE (err > 0.05) {
     TRAIN(m 0.15 epochs train_data_in train_data_out)
     (err): TEST(m test_data_in test_data_out)
