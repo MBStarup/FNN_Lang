@@ -13,7 +13,7 @@ public class Main {
         String filepath = null;
 
         args.AddFlag("--no-remove-c", "doesn't remove the intermediary c source file");
-        args.AddFlag("--no-invoke-gcc", "doesn't doesn't invoke gcc");
+        args.AddFlag("--no-invoke-gcc", "doesn't invoke gcc");
         args.AddFlag("--gcc-output", "prints the output from gcc");
         args.AddProp("-o", "a.exe", "the name of the output (default: a.exe)");
         try {
