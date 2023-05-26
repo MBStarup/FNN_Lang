@@ -4,7 +4,7 @@ int main(int argc, char const *argv[])
 {
     srand(420);
 
-    model_T m = model_new((2), layer_new(INPUT_SIZE, 128, &E_sigmoid, &E_derivative_of_sigmoid), layer_new(128, OUTPUT_SIZE, &E_sigmoid, &E_derivative_of_sigmoid));
+    model_T m = model_new((2), layer_new(INPUT_SIZE, 128, &sigmoid, &derivative_of_sigmoid), layer_new(128, OUTPUT_SIZE, &sigmoid, &derivative_of_sigmoid));
     DEBUG("%d\n", m.layer_amount);
 
     double **actual_results = ass_malloc(sizeof(double *) * (m.layer_amount + 1)); // the actual stack allocated array for the results of one training example (including the input data)

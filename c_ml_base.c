@@ -9,18 +9,10 @@
 // -- ml config --
 #define INPUT_SIZE 784
 #define OUTPUT_SIZE 10
-#define TRAINING_DATA_AMOUNT 12
-#define EPOCHS 3000
-#define BATCH_SIZE 4
-
 // -- other config --
 #define DATA_WIDTH 28
 #define DATA_HEIGHT 28
-#define PRINT_NUM 5
-#define PRINTED_EXAMPLE 0
-#define PRINTED_EXAMPLE_AMOUNT 12
 #define SHUFFLE_N 100
-#define _NO_PRINT
 
 // -- debugging tools --
 #ifdef DEBUG_LOG
@@ -150,26 +142,6 @@ model_T model_new(int amount, ...)
     return result;
 }
 
-int E_number = 69;
-
-void E_square(int *r, int a) { *r = a * a; }
-
-// char *arr_new(int amount, int elem_size, ...)
-// {
-//     char *result = ass_malloc(amount * elem_size);
-//     ((int *)result)[-1] = amount;
-
-//     va_list valist;
-//     va_start(valist, amount * elem_size);
-
-//     for (int i = 0; i < amount * elem_size; i++)
-//     {
-//         result[i] = va_arg(valist, char);
-//     }
-
-//     va_end(valist);
-//     return result;
-// }
 
 // Shuffles an array by repeadedly picking two random indexes and swapping them arr_length * SHUFFLE_N times
 // ------------------------------
@@ -192,10 +164,8 @@ void shuffle_arr(int arr_length, int elem_size, void *arr)
     for (int i = 0; i < arr_length * SHUFFLE_N; i++)
     {
         // pick two random indicies in the arr
-        int a = (int)(((double)rand() / (double)RAND_MAX) * (arr_length - 1)); // LEGACY: Shouldn't this be "... * (arr_length - 1)"? Although when I do that it seems to never shuffle the last one so...
-        int b = (int)(((double)rand() / (double)RAND_MAX) * (arr_length - 1)); // LEGACY: Shouldn't this be "... * (arr_length - 1)"? Although when I do that it seems to never shuffle the last one so...
-        // if (a == PRINTED_EXAMPLE || b == PRINTED_EXAMPLE)
-        //     printf("Shufflin %d and %d\n", a, b);
+        int a = (int)(((double)rand() / (double)RAND_MAX) * (arr_length - 1)); 
+        int b = (int)(((double)rand() / (double)RAND_MAX) * (arr_length - 1));
         memcpy(temp, array + (a * elem_size), elem_size);                    // temp = arr[a]
         memcpy(array + (a * elem_size), array + (b * elem_size), elem_size); // arr[a] = arr[b]
         memcpy(array + (b * elem_size), temp, elem_size);                    // arr[b] = temp
@@ -351,18 +321,6 @@ void softmax(int size, double *inputs, double *outputs)
     ass_free(e_arr);
 }
 
-// return (x > 0) ? x : 0;
-double relu(double x)
-{
-    return (x > 0) ? x : 0;
-}
-
-// return x > 0;
-double derivative_of_relu(double x)
-{
-    return x > 0;
-}
-
 // return 1.0 / (1.0 + exp(-1 * x));
 double sigmoid(double x)
 {
@@ -374,11 +332,6 @@ double derivative_of_sigmoid(double x)
 {
     return sigmoid(x) * (1 - sigmoid(x));
 }
-
-double E_relu(double x) { return relu(x); }                                   // FNN calling convention version
-double E_derivative_of_relu(double x) { return derivative_of_relu(x); }       // FNN calling convention version
-double E_sigmoid(double x) { return sigmoid(x); }                             // FNN calling convention version
-double E_derivative_of_sigmoid(double x) { return derivative_of_sigmoid(x); } // FNN calling convention version
 
 void _train_model(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output, int data_amount)
 {
@@ -439,19 +392,12 @@ void _train_model(model_T model, double learning_rate, int epochs, double **inpu
             double *next_dcost_dout;
             for (int layer = layer_amount - 1; layer >= 0; layer--)
             {
-
-                /*
-                 * side note:
-                 * we're being kinda wastefull here to help generalize, since we're allocating a big array for the dcost_dout of the input values,
-                 * values for it, just to throw them out since that isn't a real layer. Definetly a possible place to optimize
-                 * if we're fine with introducing more hard coded "edge cases" such as the first and last loop
-                 */
                 next_dcost_dout = ass_calloc(sizeof(double) * layers[layer].in); // alloc new array according to the previous layers (next in the backpropagation, since we're propagating backwards) output, aka this layers input
 
                 for (int out = 0; out < layers[layer].out; out++)
                 {
                     double dout_dz;
-                    dout_dz = layers[layer].activation_derivative(results[layer][out]); //! <- only real diff I can see is that in the example that works, this uses the "Out" value after activation instead of the "z" value before activation, so why does 3B1B say it's the derivative of the activation of z???
+                    dout_dz = layers[layer].activation_derivative(results[layer][out]);
                     for (int input = 0; input < layers[layer].in; input++)
                     {
 
@@ -486,19 +432,6 @@ void train_model(model_T model, double learning_rate, int epochs, double **input
     _train_model(model, learning_rate, epochs, input_data, expected_output, size);
 }
 
-/* void train_model_no_batch(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
-{
-    int size = ((int *)expected_output)[-1];
-
-    _train_model(model, learning_rate, epochs, size, input_data, expected_output, size);
-} */
-
-int E_train(model_T model, double learning_rate, int epochs, double **input_data, double **expected_output)
-{
-    train_model(model, learning_rate, epochs, input_data, expected_output);
-    return 0;
-}
-
 double naive_avg(double *vals, int count)
 {
     double sum = 0;
@@ -508,24 +441,6 @@ double naive_avg(double *vals, int count)
     }
     return sum / ((double)count);
 }
-
-// //! WARNING, MUTATES THE ORIGINAL ARRAY DESTRUCTIVELY
-// //! ONLY WORKS FOR POWERS OF 2
-// double mut_avg(double *vals, int count)
-// {
-//     while (count > 1) // avg them pairwise, to avoid getting too large numbers where floating point gets weird
-//     {
-//         print_double_arr(count, count, vals);
-//         printf("\n");
-//         for (int i = 0; i < (count / 2); i++)
-//         {
-//             vals[i] = (vals[i * 2] + vals[(i * 2) + 1]) / ((double)2);
-//         }
-//         count = count / 2;
-//     }
-
-//     return vals[0];
-// }
 
 double _test_model(model_T model, double **input_data, double **expected_output, int data_amount)
 {
@@ -660,30 +575,6 @@ int E_exit(int a)
 {
     exit(a);
     return 0;
-}
-
-int *E_getarr(int a)
-{
-    int *arr = ass_malloc(sizeof(int) + a);
-    arr[0] = a;
-    int *r;
-    r = (int *)(&(arr[1]));
-    for (int i = 0; i < a; i++)
-    {
-        r[i] = 69 + i;
-    }
-    return r;
-}
-
-int E_print_lyr(layer_T l)
-{
-    printf("Layer:\n\tIn: %d\n\tOut: %d\n", l.in, l.out);
-    return 0;
-}
-
-double E_exp(double e)
-{
-    return exp(e);
 }
 
 int E_tstwithprint(model_T m, double *image)
